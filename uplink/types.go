@@ -24,22 +24,39 @@ type User struct {
 	KeyHash       []byte
 }
 
-// Conversation represents a conversation between two Users.
+// Conversation represents a conversation between many Users.
 type Conversation struct {
 	ID           uint64 `igor:"primary_key"`
-	User1        uint64
-	User2        uint64
-	Key1         []byte
-	Key2         []byte
+	KeyHash      []byte
 	CreationTime time.Time `sql:"default:(now() at time zone 'utc')"`
+}
+
+// Member represents the membership of a given User to a Conversation.
+type Member struct {
+	ID           uint64 `igor:"primary_key"`
+	UID          uint64
+	Conversation uint64
+	JoinTime     time.Time `sql:"default:(now() at time zone 'utc')"`
+	EncKey       []byte
 }
 
 // Message represents a message belonging to a Conversation.
 type Message struct {
 	ID           uint64 `igor:"primary_key"`
 	Conversation uint64
-	RecvTime     time.Time
+	Sender       uint64
+	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 	Body         []byte
+}
+
+// Invite represents an invite to a given Conversation.
+type Invite struct {
+	ID           uint64 `igor:"primary_key"`
+	Conversation uint64
+	Sender       uint64
+	Receiver     uint64
+	RecvEncKey   []byte
+	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 
 // TableName returns the name of the table associated with User.
@@ -47,12 +64,22 @@ func (User) TableName() string {
 	return "users"
 }
 
-// TableName returns the name of the table associated with User.
+// TableName returns the name of the table associated with Conversation.
 func (Conversation) TableName() string {
 	return "conversations"
 }
 
-// TableName returns the name of the table associated with User.
+// TableName returns the name of the table associated with Member.
+func (Member) TableName() string {
+	return "members"
+}
+
+// TableName returns the name of the table associated with Message.
 func (Message) TableName() string {
 	return "messages"
+}
+
+// TableName returns the name of the table associated with Invite.
+func (Invite) TableName() string {
+	return "invites"
 }

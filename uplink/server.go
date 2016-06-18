@@ -13,6 +13,8 @@
 package uplink
 
 import (
+	"log"
+
 	"github.com/galeone/igor"
 )
 
@@ -20,6 +22,7 @@ import (
 type Uplink struct {
 	cfg Config
 	db  *igor.Database
+	log *log.Logger
 }
 
 func (u *Uplink) connectDB() (err error) {
@@ -38,6 +41,6 @@ func (u *Uplink) Start() (err error) {
 
 // New Initializes and returns an instance of Uplink according
 // to the given Config.
-func New(cfg Config) (*Uplink, error) {
-	return &Uplink{cfg: cfg}, nil
+func New(cfg Config, logger *log.Logger) (*Uplink, error) {
+	return &Uplink{cfg: cfg, log: logger}, nil
 }

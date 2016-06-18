@@ -13,23 +13,39 @@
 package main
 
 import (
+	"flag"
 	"log"
+	"os"
 
 	"github.com/mcilloni/uplink/uplink"
 )
 
+var (
+	initdb = flag.Bool("init", false, "initializes the database")
+)
+
 func main() {
+	flag.Parse()
+	logger := log.New(os.Stderr, "uplink:", log.LstdFlags)
+
 	up, err := uplink.New(uplink.Config{
 		DBConnInfo: "user=uplink password=linkie dbname=uplink sslmode=disable",
-	})
+	}, logger)
 
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	err = up.InitDB()
+	if *initdb {
+		logger.Println("initializing the database, please wait...")
 
-	if err != nil {
-		log.Fatal(err)
+		if err = up.InitDB(); err != nil {
+			logger.Fatal(err)
+		} else {
+			logger.Println("database correctly initialized.")
+		}
+	} else {
+
 	}
+
 }
