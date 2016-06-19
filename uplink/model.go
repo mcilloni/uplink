@@ -96,12 +96,13 @@ func (u *Uplink) newMessage(conv uint64, sender uint64, body []byte) (msg Messag
 	return
 }
 
-func (u *Uplink) register(name string, pk, epk, hk []byte) (user User, err error) {
+func (u *Uplink) register(name string, pk, epk, encTk []byte, tk string) (user User, err error) {
 	user = User{
 		Name:          name,
 		PublicKey:     pk,
 		EncPrivateKey: epk,
-		KeyHash:       hk,
+		EncChToken:    encTk,
+		ChToken:       tk,
 	}
 
 	err = u.db.Create(&user)

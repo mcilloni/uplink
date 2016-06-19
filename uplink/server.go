@@ -25,9 +25,9 @@ type Uplink struct {
 	log *log.Logger
 }
 
-func (u *Uplink) connectDB() (err error) {
+func (u *Uplink) connectDB(connStr string) (err error) {
 	if u.db == nil {
-		u.db, err = igor.Connect(u.cfg.DBConnInfo)
+		u.db, err = igor.Connect(connStr)
 	}
 
 	return
@@ -35,7 +35,7 @@ func (u *Uplink) connectDB() (err error) {
 
 // Start starts a previously configured Uplink instance
 func (u *Uplink) Start() (err error) {
-	err = u.connectDB()
+	err = u.connectDB(u.cfg.ConnInfo)
 	return
 }
 

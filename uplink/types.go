@@ -21,7 +21,8 @@ type User struct {
 	RegTime       time.Time `sql:"default:(now() at time zone 'utc')"`
 	PublicKey     []byte
 	EncPrivateKey []byte
-	KeyHash       []byte
+	EncChToken    []byte
+	ChToken       string
 }
 
 // Conversation represents a conversation between many Users.
@@ -59,6 +60,15 @@ type Invite struct {
 	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 
+// Friendship represents a relationship between two users that contacted each
+// other, and appear in each friendlist.
+type Friendship struct {
+	ID            uint64 `igor:"primary_key"`
+	User1         uint64
+	User2         uint64
+	EstablishTime time.Time `sql:"default:(now() at time zone 'utc')"`
+}
+
 // TableName returns the name of the table associated with User.
 func (User) TableName() string {
 	return "users"
@@ -82,4 +92,9 @@ func (Message) TableName() string {
 // TableName returns the name of the table associated with Invite.
 func (Invite) TableName() string {
 	return "invites"
+}
+
+// TableName returns the name of the table associated with Friendship.
+func (Friendship) TableName() string {
+	return "friendships"
 }
