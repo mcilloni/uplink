@@ -15,17 +15,28 @@ package uplink
 import (
 	"errors"
 	"strings"
+
+	"github.com/galeone/igor"
 )
 
 var (
-	errAlreadyInvited = errors.New("user already invited")
-	errEmptyConv      = errors.New("empty conversation")
-	errNoConv         = errors.New("no such conversation")
-	errNoUser         = errors.New("no such user")
-	errNotInvited     = errors.New("user not invited to the given conversation")
-	errNotMember      = errors.New("user not member of conversation")
-	errSelfInvite     = errors.New("can't invite yourself")
+	errAlreadyInvited   = errors.New("user already invited")
+	errEmptyConv        = errors.New("empty conversation")
+	errNameAlreadyTaken = errors.New("name already taken")
+	errNoConv           = errors.New("no such conversation")
+	errNoUser           = errors.New("no such user")
+	errNotInvited       = errors.New("user not invited to the given conversation")
+	errNotMember        = errors.New("user not member of conversation")
+	errSelfInvite       = errors.New("can't invite yourself")
 )
+
+func (u *Uplink) connectDB(connStr string) (err error) {
+	if u.db == nil {
+		u.db, err = igor.Connect(connStr)
+	}
+
+	return
+}
 
 // getMemberships returns all the Member elements "user" belongs to.
 func (u *Uplink) getMemberships(user uint64) (convs []Member, err error) {
@@ -106,6 +117,10 @@ func (u *Uplink) register(name string, pk, epk, encTk []byte, tk string) (user U
 	}
 
 	err = u.db.Create(&user)
+
+	if err != nil && strings.Contains(err.Error(), "NAME_ALREADY_TAKEN") {
+		err = errNameAlreadyTaken
+	}
 
 	return
 }

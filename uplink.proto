@@ -1,0 +1,84 @@
+//  uplink, a simple daemon to implement a simple chat protocol
+//  Copyright (C) Marco Cilloni <marco.cilloni@yahoo.com> 2016
+//
+//  This Source Code Form is subject to the terms of the Mozilla Public
+//  License, v. 2.0. If a copy of the MPL was not distributed with this
+//  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+//  Exhibit B is not attached; this software is compatible with the
+//  licenses expressed under Section 1.12 of the MPL v2.
+
+syntax = "proto3";
+
+service Uplink {
+  rpc NewUser (NewUserReq) returns (EndLoginResp);
+  rpc LoginExchange (stream LoginReq) returns (stream LoginStep);
+}
+
+message NewUserReq {
+  string name = 1;
+  bytes public_key = 2;
+  bytes enc_private_key = 3;
+  string ch_token = 4;
+  bytes enc_ch_token = 5;
+}
+
+message LoginReq {
+  oneof login_steps {
+    Username step1 = 1;
+    FirstChallenge step2 = 2;
+    SecondChallenge step3 = 3;
+  }
+}
+
+message Username {
+  string name = 1;
+}
+
+message FirstChallenge {
+  bytes enc_ch_token = 1;
+}
+
+message SecondChallenge {
+  bytes final_challenge = 1;
+}
+
+message LoginStep {
+  oneof login_steps {
+    FirstToken step1 = 1;
+    UserInfo step2 = 2;
+    EndLoginResp step3 = 3;
+  }
+}
+
+message FirstToken {
+  string tk = 1;
+}
+
+message UserInfo {
+  bytes public_key = 1;
+  bytes enc_private_key = 2;
+  bytes enc_ch_token = 3;
+}
+
+message EndLoginResp {
+  oneof test_success {
+    SessInfo session_info = 1;
+    Error err_code = 2;
+  }
+}
+
+message SessInfo {
+  int64 uid = 1;
+  string session_id = 2;
+}
+
+enum Error {
+  EALREADYINVITED = 0;
+  EEMPTYCONV = 1;
+  ENAMEALREADYTAKEN = 2;
+  ENOCONV = 3;
+  ENOUSER = 4;
+  ENOTINVITED = 5;
+  ENOTMEMBER = 6;
+  ESELFINVITE = 7;
+}

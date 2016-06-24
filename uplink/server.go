@@ -14,6 +14,7 @@ package uplink
 
 import (
 	"log"
+	"net"
 
 	"github.com/galeone/igor"
 )
@@ -25,17 +26,29 @@ type Uplink struct {
 	log *log.Logger
 }
 
-func (u *Uplink) connectDB(connStr string) (err error) {
-	if u.db == nil {
-		u.db, err = igor.Connect(connStr)
-	}
+func (u *Uplink) serve(conn net.Conn) {
 
-	return
 }
 
-// Start starts a previously configured Uplink instance
+// Start starts a previously configured Uplink instance.
 func (u *Uplink) Start() (err error) {
-	err = u.connectDB(u.cfg.ConnInfo)
+	if err = u.connectDB(u.cfg.ConnInfo); err != nil {
+		return
+	}
+
+	if listener, err := net.Listen("tcp", u.cfg.ConnInfo); err == nil {
+		defer listener.Close()
+
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return err
+			}
+
+			go u.serve(conn)
+		}
+	}
+
 	return
 }
 
