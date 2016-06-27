@@ -9,9 +9,20 @@
 
 syntax = "proto3";
 
+package protodef;
+
 service Uplink {
-  rpc NewUser (NewUserReq) returns (EndLoginResp);
-  rpc LoginExchange (stream LoginReq) returns (stream LoginStep);
+  rpc Exists (Username) returns (ErrCodeResp);
+  rpc LoginExchange (stream LoginReq) returns (stream LoginResp);
+  rpc NewUser (NewUserReq) returns (NewUserResp);
+  rpc Resume (SessInfo) returns (ErrCodeResp);
+}
+
+message ErrCodeResp {
+  oneof response {
+    bool success = 1;
+    ErrCode err_code = 2;
+  }
 }
 
 message NewUserReq {
@@ -20,6 +31,13 @@ message NewUserReq {
   bytes enc_private_key = 3;
   string ch_token = 4;
   bytes enc_ch_token = 5;
+}
+
+message NewUserResp {
+  oneof response {
+    SessInfo session_info = 1;
+    ErrCode err_code = 2;
+  }
 }
 
 message LoginReq {
@@ -42,16 +60,13 @@ message SecondChallenge {
   bytes final_challenge = 1;
 }
 
-message LoginStep {
+message LoginResp {
   oneof login_steps {
-    FirstToken step1 = 1;
+    string step1 = 1;
     UserInfo step2 = 2;
-    EndLoginResp step3 = 3;
+    SessInfo step3 = 3;
+    ErrCode err_code = 4;
   }
-}
-
-message FirstToken {
-  string tk = 1;
 }
 
 message UserInfo {
@@ -60,19 +75,12 @@ message UserInfo {
   bytes enc_ch_token = 3;
 }
 
-message EndLoginResp {
-  oneof test_success {
-    SessInfo session_info = 1;
-    Error err_code = 2;
-  }
-}
-
 message SessInfo {
   int64 uid = 1;
   string session_id = 2;
 }
 
-enum Error {
+enum ErrCode {
   EALREADYINVITED = 0;
   EEMPTYCONV = 1;
   ENAMEALREADYTAKEN = 2;
@@ -81,4 +89,7 @@ enum Error {
   ENOTINVITED = 5;
   ENOTMEMBER = 6;
   ESELFINVITE = 7;
+  ESERVERFAULT = 8;
+  EBROKEPROTO = 9;
+  EAUTHFAIL = 10;
 }

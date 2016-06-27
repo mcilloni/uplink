@@ -16,7 +16,7 @@ import "time"
 
 // User represents an user of the service.
 type User struct {
-	ID            uint64 `igor:"primary_key"`
+	ID            int64 `igor:"primary_key"`
 	Name          string
 	RegTime       time.Time `sql:"default:(now() at time zone 'utc')"`
 	PublicKey     []byte
@@ -27,35 +27,35 @@ type User struct {
 
 // Conversation represents a conversation between many Users.
 type Conversation struct {
-	ID           uint64 `igor:"primary_key"`
+	ID           int64 `igor:"primary_key"`
 	KeyHash      []byte
 	CreationTime time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 
 // Member represents the membership of a given User to a Conversation.
 type Member struct {
-	ID           uint64 `igor:"primary_key"`
-	UID          uint64
-	Conversation uint64
+	ID           int64 `igor:"primary_key"`
+	UID          int64
+	Conversation int64
 	JoinTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 	EncKey       []byte
 }
 
 // Message represents a message belonging to a Conversation.
 type Message struct {
-	ID           uint64 `igor:"primary_key"`
-	Conversation uint64
-	Sender       uint64
+	ID           int64 `igor:"primary_key"`
+	Conversation int64
+	Sender       int64
 	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 	Body         []byte
 }
 
 // Invite represents an invite to a given Conversation.
 type Invite struct {
-	ID           uint64 `igor:"primary_key"`
-	Conversation uint64
-	Sender       uint64
-	Receiver     uint64
+	ID           int64 `igor:"primary_key"`
+	Conversation int64
+	Sender       int64
+	Receiver     int64
 	RecvEncKey   []byte
 	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 }
@@ -63,10 +63,17 @@ type Invite struct {
 // Friendship represents a relationship between two users that contacted each
 // other, and appear in each friendlist.
 type Friendship struct {
-	ID            uint64 `igor:"primary_key"`
-	User1         uint64
-	User2         uint64
+	ID            int64 `igor:"primary_key"`
+	User1         int64
+	User2         int64
 	EstablishTime time.Time `sql:"default:(now() at time zone 'utc')"`
+}
+
+// Session represents a session.
+type Session struct {
+	ID        int64  `igor:"primary_key"`
+	SessionID string `sql:"default:encode(digest(gen_random_bytes(256),'sha256'),'hex')"`
+	UID       int64
 }
 
 // TableName returns the name of the table associated with User.
@@ -97,4 +104,9 @@ func (Invite) TableName() string {
 // TableName returns the name of the table associated with Friendship.
 func (Friendship) TableName() string {
 	return "friendships"
+}
+
+// TableName returns the name of the table associated with Session.
+func (Session) TableName() string {
+	return "sessions"
 }
