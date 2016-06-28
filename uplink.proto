@@ -11,6 +11,9 @@ syntax = "proto3";
 
 package protodef;
 
+option java_package = "com.github.mcilloni.uplink";
+option java_outer_classname = "UplinkProto";
+
 service Uplink {
   rpc Exists (Username) returns (ErrCodeResp);
   rpc LoginExchange (stream LoginReq) returns (stream LoginResp);
