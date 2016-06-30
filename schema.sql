@@ -10,8 +10,7 @@ CREATE TABLE users (
   reg_time TIMESTAMP WITHOUT TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL,
   public_key BYTEA NOT NULL,
   enc_private_key BYTEA NOT NULL,
-  enc_ch_token BYTEA NOT NULL,
-  ch_token TEXT NOT NULL,
+  authpass TEXT NOT NULL,
   CONSTRAINT NAME_ALREADY_TAKEN UNIQUE (NAME)
 );
 ALTER TABLE users OWNER TO uplink;

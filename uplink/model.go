@@ -19,7 +19,7 @@ import (
 	pd "github.com/mcilloni/uplink/protodef"
 )
 
-func (u *Uplink) connectDB(connStr string) *pd.Error {
+func (u *Uplink) connectDB(connStr string) error {
 	if u.db == nil {
 		db, err := igor.Connect(connStr)
 
@@ -31,26 +31,26 @@ func (u *Uplink) connectDB(connStr string) *pd.Error {
 	return nil
 }
 
-func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err *pd.Error) {
+func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
 	err = pd.ServerFault(u.db.Select("valid_session(?,?)", sessid, uid).Scan(&res))
 
 	return
 }
 
 // getMemberships returns all the Member elements "user" belongs to.
-func (u *Uplink) getMemberships(user int64) (convs []Member, _ *pd.Error) {
+func (u *Uplink) getMemberships(user int64) (convs []Member, _ error) {
 	err := u.db.Model(Member{}).Where(&Member{UID: user}).Scan(convs)
 
 	return convs, pd.ServerFault(err)
 }
 
-func (u *Uplink) getMessages(conv int64, limit, offset int) (msgs []Message, err *pd.Error) {
+func (u *Uplink) getMessages(conv int64, limit, offset int) (msgs []Message, err error) {
 	err = pd.ServerFault(u.db.Model(Message{}).Where(&Message{Conversation: conv}).Limit(limit).Offset(offset).Scan(msgs))
 
 	return
 }
 
-func (u *Uplink) existsUser(name string) (foundUser bool, err *pd.Error) {
+func (u *Uplink) existsUser(name string) (foundUser bool, err error) {
 	_, err = u.getUser(name)
 
 	foundUser = err == nil
@@ -62,7 +62,7 @@ func (u *Uplink) existsUser(name string) (foundUser bool, err *pd.Error) {
 	return
 }
 
-func (u *Uplink) getUser(name string) (user User, err *pd.Error) {
+func (u *Uplink) getUser(name string) (user User, err error) {
 	err = pd.ServerFault(u.db.Model(User{}).Where(&User{Name: name}).Scan(&user))
 
 	if err == nil && user.ID == 0 {
@@ -72,7 +72,7 @@ func (u *Uplink) getUser(name string) (user User, err *pd.Error) {
 	return
 }
 
-func (u *Uplink) getUsersOf(conv int64) (users []User, err *pd.Error) {
+func (u *Uplink) getUsersOf(conv int64) (users []User, err error) {
 	err = pd.ServerFault(u.db.Model(User{}).Joins("JOIN members ON users.id = members.uid").Where("conversation = ?", conv).Scan(users))
 
 	if err == nil && len(users) == 0 {
@@ -82,14 +82,14 @@ func (u *Uplink) getUsersOf(conv int64) (users []User, err *pd.Error) {
 	return
 }
 
-func (u *Uplink) initConversation(keyHash []byte) (conv Conversation, err *pd.Error) {
+func (u *Uplink) initConversation(keyHash []byte) (conv Conversation, err error) {
 	conv.KeyHash = keyHash
 	err = pd.ServerFault(u.db.Create(&conv))
 
 	return
 }
 
-func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invite Invite, err *pd.Error) {
+func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invite Invite, err error) {
 	invite = Invite{
 		Conversation: convID,
 		Sender:       sender,
@@ -102,7 +102,17 @@ func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invi
 	return
 }
 
-func (u *Uplink) newMessage(conv int64, sender int64, body []byte) (msg Message, err *pd.Error) {
+func (u *Uplink) loginUser(name, pass string) (user User, err error) {
+	err = pd.ServerFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)").Scan(&user))
+
+	if err == nil && user.ID == 0 {
+		err = pd.ErrAuthFail
+	}
+
+	return
+}
+
+func (u *Uplink) newMessage(conv int64, sender int64, body []byte) (msg Message, err error) {
 	msg = Message{
 		Conversation: conv,
 		Sender:       sender,
@@ -118,20 +128,19 @@ func (u *Uplink) newMessage(conv int64, sender int64, body []byte) (msg Message,
 	return msg, pd.ServerFault(e)
 }
 
-func (u *Uplink) newSession(uid int64) (session Session, err *pd.Error) {
+func (u *Uplink) newSession(uid int64) (session Session, err error) {
 	session = Session{UID: uid}
 	e := u.db.Create(&session)
 
 	return session, pd.ServerFault(e)
 }
 
-func (u *Uplink) register(name string, pk, epk, encTk []byte, tk string) (user User, err *pd.Error) {
+func (u *Uplink) register(name, pass string, pk, epk []byte) (user User, err error) {
 	user = User{
 		Name:          name,
+		Authpass:      pass,
 		PublicKey:     pk,
 		EncPrivateKey: epk,
-		EncChToken:    encTk,
-		ChToken:       tk,
 	}
 
 	e := u.db.Create(&user)
@@ -143,7 +152,7 @@ func (u *Uplink) register(name string, pk, epk, encTk []byte, tk string) (user U
 	return user, pd.ServerFault(e)
 }
 
-func (u *Uplink) subscribe(user, convID int64) (member Member, err *pd.Error) {
+func (u *Uplink) subscribe(user, convID int64) (member Member, err error) {
 	member = Member{UID: user, Conversation: convID}
 
 	e := u.db.Create(&member)

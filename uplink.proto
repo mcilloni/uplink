@@ -15,39 +15,31 @@ option java_package = "com.github.mcilloni.uplink";
 option java_outer_classname = "UplinkProto";
 
 service Uplink {
-  rpc Exists (Username) returns (ErrCodeResp);
+  rpc Exists (Username) returns (BoolResp);
   rpc LoginExchange (stream LoginReq) returns (stream LoginResp);
   rpc NewUser (NewUserReq) returns (NewUserResp);
-  rpc Resume (SessInfo) returns (ErrCodeResp);
+  rpc Resume (SessInfo) returns (BoolResp);
 }
 
-message ErrCodeResp {
-  oneof response {
-    bool success = 1;
-    ErrCode err_code = 2;
-  }
+message BoolResp {
+  bool success = 1;
 }
 
 message NewUserReq {
   string name = 1;
-  bytes public_key = 2;
-  bytes enc_private_key = 3;
-  string ch_token = 4;
-  bytes enc_ch_token = 5;
+  string pass = 2;
+  bytes public_key = 3;
+  bytes enc_private_key = 4;
 }
 
 message NewUserResp {
-  oneof response {
-    SessInfo session_info = 1;
-    ErrCode err_code = 2;
-  }
+  SessInfo session_info = 1;
 }
 
 message LoginReq {
   oneof login_steps {
-    Username step1 = 1;
-    FirstChallenge step2 = 2;
-    SecondChallenge step3 = 3;
+    AuthInfo step1 = 1;
+    Challenge step2 = 2;
   }
 }
 
@@ -55,44 +47,33 @@ message Username {
   string name = 1;
 }
 
-message FirstChallenge {
-  bytes enc_ch_token = 1;
+message AuthInfo {
+  string name = 1;
+  string pass = 2;
 }
 
-message SecondChallenge {
-  bytes final_challenge = 1;
+message Challenge {
+  bytes token = 1;
 }
 
 message LoginResp {
   oneof login_steps {
-    string step1 = 1;
-    UserInfo step2 = 2;
-    SessInfo step3 = 3;
-    ErrCode err_code = 4;
+    LoginAccepted step1 = 1;
+    SessInfo step2 = 2;
   }
+}
+
+message LoginAccepted {
+  UserInfo user_info = 1;
+  Challenge challenge = 2;
 }
 
 message UserInfo {
   bytes public_key = 1;
   bytes enc_private_key = 2;
-  bytes enc_ch_token = 3;
 }
 
 message SessInfo {
   int64 uid = 1;
   string session_id = 2;
-}
-
-enum ErrCode {
-  EALREADYINVITED = 0;
-  EEMPTYCONV = 1;
-  ENAMEALREADYTAKEN = 2;
-  ENOCONV = 3;
-  ENOUSER = 4;
-  ENOTINVITED = 5;
-  ENOTMEMBER = 6;
-  ESELFINVITE = 7;
-  ESERVERFAULT = 8;
-  EBROKEPROTO = 9;
-  EAUTHFAIL = 10;
 }

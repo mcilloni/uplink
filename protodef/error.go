@@ -12,66 +12,57 @@
 
 package protodef
 
-// Error type for the Uplink protocol.
-type Error struct {
-	code ErrCode
-	msg  string
-}
-
-// Code returns the error code (as defined by proto)
-func (e Error) Code() ErrCode {
-	return e.code
-}
-
-// Error returns the text error, and implements the error interface.
-func (e Error) Error() string {
-	return e.msg
-}
-
-func err(msg string, code ErrCode) *Error {
-	return &Error{msg: msg, code: code}
-}
+import (
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+)
 
 // ServerFault wraps an error (representing an internal server error) into an
 // Error.
-func ServerFault(e error) *Error {
+func ServerFault(e error) error {
 	if e == nil {
 		return nil
 	}
 
-	return err(e.Error(), ErrCode_ESERVERFAULT)
+	return grpc.Errorf(codes.Internal, "ESERVERFAULT: server is facing issues")
 }
 
 var (
 	// ErrAlreadyInvited means that a given has already been invited to a given
 	// conversation.
-	ErrAlreadyInvited = err("user already invited", ErrCode_EALREADYINVITED)
+	ErrAlreadyInvited = grpc.Errorf(codes.AlreadyExists, "EALREADYINVITED: user already invited")
 
 	// ErrEmptyConv means that a given conversation is empty.
-	ErrEmptyConv = err("empty conversation", ErrCode_EEMPTYCONV)
+	ErrEmptyConv = grpc.Errorf(codes.NotFound, "EEMPTYCONV: empty conversation")
 
 	// ErrNameAlreadyTaken means that the wanted username is already taken.
-	ErrNameAlreadyTaken = err("name already taken", ErrCode_ENAMEALREADYTAKEN)
+	ErrNameAlreadyTaken = grpc.Errorf(codes.AlreadyExists, "ENAMEALREADYTAKEN: name already taken")
 
 	// ErrNoConv means that there is no such conversation.
-	ErrNoConv = err("no such conversation", ErrCode_ENOCONV)
+	ErrNoConv = grpc.Errorf(codes.NotFound, "ENOCONV: no such conversation")
 
 	// ErrNoUser means that the requested user doesn't exist.
-	ErrNoUser = err("no such user", ErrCode_ENOUSER)
+	ErrNoUser = grpc.Errorf(codes.NotFound, "ENOUSER: no such user")
 
 	// ErrNotInvited means that the current user has no invite into the conversation.
-	ErrNotInvited = err("user not invited to the given conversation", ErrCode_ENOTINVITED)
+	ErrNotInvited = grpc.Errorf(codes.PermissionDenied, "ENOTINVITED: user not invited to the given conversation")
 
 	// ErrNotMember means that the user is not member of a given conversation
-	ErrNotMember = err("user not member of conversation", ErrCode_ENOTMEMBER)
+	ErrNotMember = grpc.Errorf(codes.PermissionDenied, "ENOTMEMBER: user not member of conversation")
 
 	// ErrSelfInvite means that the user has tried to invite itself into a
 	// conversation.
-	ErrSelfInvite = err("can't invite yourself", ErrCode_ESELFINVITE)
+	ErrSelfInvite = grpc.Errorf(codes.PermissionDenied, "ESELFINVITE: can't invite yourself")
 
 	// ErrBrokeProto means that the user did not follow the protocol correctly.
-	ErrBrokeProto = err("protocol failure", ErrCode_EBROKEPROTO)
+	ErrBrokeProto = grpc.Errorf(codes.Aborted, "EBROKEPROTO: protocol failure")
 
 	// ErrAuthFail means that the authentication process somehow failed.
-	ErrAuthFail = err("authentication failure", ErrCode_EAUTHFAIL)
+	ErrAuthFail = grpc.Errorf(codes.PermissionDenied, "EAUTHFAIL: authentication failure")
+
+	// ErrNotAuthenticated means that the user is not authenticated.
+	ErrNotAuthenticated = grpc.Errorf(codes.Unauthenticated, "ENOTAUTHENTICATED: not autenticated")
+
+	// ErrBrokenKey means that the public key provided is broken.
+	ErrBrokenKey = grpc.Errorf(codes.InvalidArgument, "EBROKENKEY: broken public key")
 )

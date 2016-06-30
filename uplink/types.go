@@ -17,12 +17,11 @@ import "time"
 // User represents an user of the service.
 type User struct {
 	ID            int64 `igor:"primary_key"`
+	Authpass      string
 	Name          string
 	RegTime       time.Time `sql:"default:(now() at time zone 'utc')"`
 	PublicKey     []byte
 	EncPrivateKey []byte
-	EncChToken    []byte
-	ChToken       string
 }
 
 // Conversation represents a conversation between many Users.

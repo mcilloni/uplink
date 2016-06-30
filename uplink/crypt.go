@@ -19,6 +19,17 @@ import (
 	"crypto/x509"
 )
 
+func checkKey(pk []byte) bool {
+	pubKeyIface, err := x509.ParsePKIXPublicKey(pk)
+	if err != nil {
+		return false
+	}
+
+	_, ok := pubKeyIface.(*rsa.PublicKey)
+
+	return ok
+}
+
 func genTok(pk []byte) (tok, encTok []byte, err error) {
 	pubKeyIface, _ := x509.ParsePKIXPublicKey(pk) // already checked on insertion
 	rsaPubKey, _ := pubKeyIface.(*rsa.PublicKey)  // already checked, too
