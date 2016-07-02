@@ -16,14 +16,17 @@ import (
 	"log"
 	"net"
 
+	"google.golang.org/grpc"
+
 	"github.com/galeone/igor"
+	pd "github.com/mcilloni/uplink/protodef"
 )
 
 // Uplink instance structure.
 type Uplink struct {
+	*log.Logger
 	cfg Config
 	db  *igor.Database
-	log *log.Logger
 }
 
 func (u *Uplink) serve(conn net.Conn) {
@@ -39,13 +42,10 @@ func (u *Uplink) Start() (err error) {
 	if listener, err := net.Listen("tcp", u.cfg.ConnInfo); err == nil {
 		defer listener.Close()
 
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				return err
-			}
-
-			go u.serve(conn)
+		srv := grpc.NewServer()
+		pd.RegisterUplinkServer(srv, &uplinkRoutes{})
+		if err = srv.Serve(listener); err != nil {
+			u.Fatalln(err)
 		}
 	}
 
@@ -55,5 +55,5 @@ func (u *Uplink) Start() (err error) {
 // New Initializes and returns an instance of Uplink according
 // to the given Config.
 func New(cfg Config, logger *log.Logger) (*Uplink, error) {
-	return &Uplink{cfg: cfg, log: logger}, nil
+	return &Uplink{cfg: cfg, Logger: logger}, nil
 }

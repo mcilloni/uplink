@@ -18,8 +18,11 @@ service Uplink {
   rpc Exists (Username) returns (BoolResp);
   rpc LoginExchange (stream LoginReq) returns (stream LoginResp);
   rpc NewUser (NewUserReq) returns (NewUserResp);
+  rpc Ping (Empty) returns (BoolResp);
   rpc Resume (SessInfo) returns (BoolResp);
 }
+
+message Empty {}
 
 message BoolResp {
   bool success = 1;

@@ -18,7 +18,6 @@ import (
 	"strconv"
 
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
 	pd "github.com/mcilloni/uplink/protodef"
@@ -46,7 +45,7 @@ func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.B
 	return &pd.BoolResp{Success: found}, nil
 }
 
-func (r *uplinkRoutes) LoginExchange(ctx context.Context, stream pd.Uplink_LoginExchangeServer) error {
+func (r *uplinkRoutes) LoginExchange(stream pd.Uplink_LoginExchangeServer) error {
 	step, err := stream.Recv()
 
 	if err == io.EOF {
@@ -129,9 +128,6 @@ func (r *uplinkRoutes) LoginExchange(ctx context.Context, stream pd.Uplink_Login
 		return err
 	}
 
-	md := metadata.Pairs("uid", strconv.FormatInt(user.ID, 10), "sessid", session.SessionID)
-	grpc.SendHeader(ctx, md)
-
 	resp = &pd.LoginResp{
 		LoginSteps: &pd.LoginResp_Step2{
 			Step2: &pd.SessInfo{
@@ -175,6 +171,33 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewU
 			SessionId: session.SessionID,
 		},
 	}, nil
+}
+
+func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, error) {
+	md, ok := metadata.FromContext(ctx)
+	if !ok {
+		return nil, pd.ErrNoMetadata
+	}
+
+	uidStrSlice, okUID := md["uid"]
+	sessidSlice, okSessid := md["sessid"]
+
+	if !okUID || !okSessid || len(uidStrSlice) != 1 || len(sessidSlice) != 1 {
+		return nil, pd.ErrBrokeProto
+	}
+
+	sessid := sessidSlice[0]
+	uid, err := strconv.ParseInt(uidStrSlice[0], 10, 64)
+	if err != nil || uid < 1 {
+		return nil, pd.ErrBrokeProto
+	}
+
+	res, err := r.u.checkSession(sessid, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.BoolResp{Success: res}, nil
 }
 
 func (r *uplinkRoutes) Resume(ctx context.Context, ses *pd.SessInfo) (*pd.BoolResp, error) {

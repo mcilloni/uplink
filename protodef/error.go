@@ -68,4 +68,7 @@ var (
 
 	// ErrZeroLenArg means that the caller sent an empty parameter when he shouldn't.
 	ErrZeroLenArg = grpc.Errorf(codes.InvalidArgument, "EZEROLENARG: argument has zero length")
+
+	// ErrNoMetadata means that the caller forgot to set metadata.
+	ErrNoMetadata = grpc.Errorf(codes.InvalidArgument, "ENOMETADATA: no metadata supplied")
 )
