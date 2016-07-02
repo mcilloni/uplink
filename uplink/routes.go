@@ -31,6 +31,33 @@ func newRoute(u *Uplink) *uplinkRoutes {
 	return &uplinkRoutes{u: u}
 }
 
+func (r *uplinkRoutes) checkSession(ctx context.Context) (bool, error) {
+	md, ok := metadata.FromContext(ctx)
+	if !ok {
+		return false, pd.ErrNoMetadata
+	}
+
+	uidStrSlice, okUID := md["uid"]
+	sessidSlice, okSessid := md["sessid"]
+
+	if !okUID || !okSessid || len(uidStrSlice) != 1 || len(sessidSlice) != 1 {
+		return false, pd.ErrBrokeProto
+	}
+
+	sessid := sessidSlice[0]
+	uid, err := strconv.ParseInt(uidStrSlice[0], 10, 64)
+	if err != nil || uid < 1 {
+		return false, pd.ErrBrokeProto
+	}
+
+	res, err := r.u.checkSession(sessid, uid)
+	if err != nil {
+		return false, err
+	}
+
+	return res, nil
+}
+
 func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
 	if len(username.Name) == 0 {
 		return nil, pd.ErrZeroLenArg
@@ -174,30 +201,13 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewU
 }
 
 func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, error) {
-	md, ok := metadata.FromContext(ctx)
-	if !ok {
-		return nil, pd.ErrNoMetadata
-	}
+	valid, err := r.checkSession(ctx)
 
-	uidStrSlice, okUID := md["uid"]
-	sessidSlice, okSessid := md["sessid"]
-
-	if !okUID || !okSessid || len(uidStrSlice) != 1 || len(sessidSlice) != 1 {
-		return nil, pd.ErrBrokeProto
-	}
-
-	sessid := sessidSlice[0]
-	uid, err := strconv.ParseInt(uidStrSlice[0], 10, 64)
-	if err != nil || uid < 1 {
-		return nil, pd.ErrBrokeProto
-	}
-
-	res, err := r.u.checkSession(sessid, uid)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pd.BoolResp{Success: res}, nil
+	return &pd.BoolResp{Success: valid}, nil
 }
 
 func (r *uplinkRoutes) Resume(ctx context.Context, ses *pd.SessInfo) (*pd.BoolResp, error) {

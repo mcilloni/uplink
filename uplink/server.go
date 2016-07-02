@@ -35,7 +35,7 @@ func (u *Uplink) serve(conn net.Conn) {
 
 // Start starts a previously configured Uplink instance.
 func (u *Uplink) Start() (err error) {
-	if err = u.connectDB(u.cfg.ConnInfo); err != nil {
+	if err = u.connectDB(u.cfg.DBConnInfo); err != nil {
 		return
 	}
 
@@ -43,7 +43,7 @@ func (u *Uplink) Start() (err error) {
 		defer listener.Close()
 
 		srv := grpc.NewServer()
-		pd.RegisterUplinkServer(srv, &uplinkRoutes{})
+		pd.RegisterUplinkServer(srv, newRoute(u))
 		if err = srv.Serve(listener); err != nil {
 			u.Fatalln(err)
 		}

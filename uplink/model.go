@@ -19,20 +19,26 @@ import (
 	pd "github.com/mcilloni/uplink/protodef"
 )
 
+func (u *Uplink) serverFault(e error) error {
+	u.Println(e)
+
+	return pd.ServerFault(e)
+}
+
 func (u *Uplink) connectDB(connStr string) error {
 	if u.db == nil {
 		db, err := igor.Connect(connStr)
 
 		u.db = db
 
-		return pd.ServerFault(err)
+		return err
 	}
 
 	return nil
 }
 
 func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
-	err = pd.ServerFault(u.db.Select("valid_session(?,?)", sessid, uid).Scan(&res))
+	err = u.serverFault(u.db.Select("valid_session(?,?)", sessid, uid).Scan(&res))
 
 	return
 }
@@ -41,11 +47,11 @@ func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
 func (u *Uplink) getMemberships(user int64) (convs []Member, _ error) {
 	err := u.db.Model(Member{}).Where(&Member{UID: user}).Scan(convs)
 
-	return convs, pd.ServerFault(err)
+	return convs, u.serverFault(err)
 }
 
 func (u *Uplink) getMessages(conv int64, limit, offset int) (msgs []Message, err error) {
-	err = pd.ServerFault(u.db.Model(Message{}).Where(&Message{Conversation: conv}).Limit(limit).Offset(offset).Scan(msgs))
+	err = u.serverFault(u.db.Model(Message{}).Where(&Message{Conversation: conv}).Limit(limit).Offset(offset).Scan(msgs))
 
 	return
 }
@@ -63,7 +69,7 @@ func (u *Uplink) existsUser(name string) (foundUser bool, err error) {
 }
 
 func (u *Uplink) getUser(name string) (user User, err error) {
-	err = pd.ServerFault(u.db.Model(User{}).Where(&User{Name: name}).Scan(&user))
+	err = u.serverFault(u.db.Model(User{}).Where(&User{Name: name}).Scan(&user))
 
 	if err == nil && user.ID == 0 {
 		err = pd.ErrNoUser
@@ -73,7 +79,7 @@ func (u *Uplink) getUser(name string) (user User, err error) {
 }
 
 func (u *Uplink) getUsersOf(conv int64) (users []User, err error) {
-	err = pd.ServerFault(u.db.Model(User{}).Joins("JOIN members ON users.id = members.uid").Where("conversation = ?", conv).Scan(users))
+	err = u.serverFault(u.db.Model(User{}).Joins("JOIN members ON users.id = members.uid").Where("conversation = ?", conv).Scan(users))
 
 	if err == nil && len(users) == 0 {
 		err = pd.ErrNoConv
@@ -84,7 +90,7 @@ func (u *Uplink) getUsersOf(conv int64) (users []User, err error) {
 
 func (u *Uplink) initConversation(keyHash []byte) (conv Conversation, err error) {
 	conv.KeyHash = keyHash
-	err = pd.ServerFault(u.db.Create(&conv))
+	err = u.serverFault(u.db.Create(&conv))
 
 	return
 }
@@ -97,13 +103,13 @@ func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invi
 		RecvEncKey:   recvEncKey,
 	}
 
-	err = pd.ServerFault(u.db.Model(Invite{}).Create(&invite))
+	err = u.serverFault(u.db.Model(Invite{}).Create(&invite))
 
 	return
 }
 
 func (u *Uplink) loginUser(name, pass string) (user User, err error) {
-	err = pd.ServerFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)").Scan(&user))
+	err = u.serverFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)").Scan(&user))
 
 	if err == nil && user.ID == 0 {
 		err = pd.ErrAuthFail
@@ -125,14 +131,14 @@ func (u *Uplink) newMessage(conv int64, sender int64, body []byte) (msg Message,
 		return msg, pd.ErrNotMember
 	}
 
-	return msg, pd.ServerFault(e)
+	return msg, u.serverFault(e)
 }
 
 func (u *Uplink) newSession(uid int64) (session Session, err error) {
 	session = Session{UID: uid}
 	e := u.db.Create(&session)
 
-	return session, pd.ServerFault(e)
+	return session, u.serverFault(e)
 }
 
 func (u *Uplink) register(name, pass string, pk, epk, keyIv, keySalt []byte) (user User, err error) {
@@ -151,7 +157,7 @@ func (u *Uplink) register(name, pass string, pk, epk, keyIv, keySalt []byte) (us
 		return user, pd.ErrNameAlreadyTaken
 	}
 
-	return user, pd.ServerFault(e)
+	return user, u.serverFault(e)
 }
 
 func (u *Uplink) subscribe(user, convID int64) (member Member, err error) {
@@ -169,7 +175,7 @@ func (u *Uplink) subscribe(user, convID int64) (member Member, err error) {
 		case strings.Contains(msg, "UNIQUE_INVITE"):
 			err = pd.ErrAlreadyInvited
 		default:
-			err = pd.ServerFault(e)
+			err = u.serverFault(e)
 		}
 	}
 
