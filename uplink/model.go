@@ -135,12 +135,14 @@ func (u *Uplink) newSession(uid int64) (session Session, err error) {
 	return session, pd.ServerFault(e)
 }
 
-func (u *Uplink) register(name, pass string, pk, epk []byte) (user User, err error) {
+func (u *Uplink) register(name, pass string, pk, epk, keyIv, keySalt []byte) (user User, err error) {
 	user = User{
 		Name:          name,
 		Authpass:      pass,
 		PublicKey:     pk,
 		EncPrivateKey: epk,
+		KeyIv:         keyIv,
+		KeySalt:       keySalt,
 	}
 
 	e := u.db.Create(&user)

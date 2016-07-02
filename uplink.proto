@@ -30,6 +30,8 @@ message NewUserReq {
   string pass = 2;
   bytes public_key = 3;
   bytes enc_private_key = 4;
+  bytes key_iv = 5;
+  bytes key_salt = 6;
 }
 
 message NewUserResp {
@@ -71,6 +73,8 @@ message LoginAccepted {
 message UserInfo {
   bytes public_key = 1;
   bytes enc_private_key = 2;
+  bytes key_iv = 5;
+  bytes key_salt = 6;
 }
 
 message SessInfo {

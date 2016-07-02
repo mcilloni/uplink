@@ -22,6 +22,8 @@ type User struct {
 	RegTime       time.Time `sql:"default:(now() at time zone 'utc')"`
 	PublicKey     []byte
 	EncPrivateKey []byte
+	KeyIv         []byte
+	KeySalt       []byte
 }
 
 // Conversation represents a conversation between many Users.

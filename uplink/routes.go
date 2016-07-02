@@ -33,6 +33,9 @@ func newRoute(u *Uplink) *uplinkRoutes {
 }
 
 func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
+	if len(username.Name) == 0 {
+		return nil, pd.ErrZeroLenArg
+	}
 
 	found, err := r.u.existsUser(username.Name)
 
@@ -62,6 +65,11 @@ func (r *uplinkRoutes) LoginExchange(ctx context.Context, stream pd.Uplink_Login
 
 	name := step1.Step1.Name
 	authpass := step1.Step1.Pass
+
+	if len(name) == 0 || len(authpass) == 0 {
+		return pd.ErrZeroLenArg
+	}
+
 	user, err := r.u.loginUser(name, authpass)
 
 	if err != nil {
@@ -79,6 +87,8 @@ func (r *uplinkRoutes) LoginExchange(ctx context.Context, stream pd.Uplink_Login
 				UserInfo: &pd.UserInfo{
 					PublicKey:     user.PublicKey,
 					EncPrivateKey: user.EncPrivateKey,
+					KeyIv:         user.KeyIv,
+					KeySalt:       user.KeySalt,
 				},
 				Challenge: &pd.Challenge{
 					Token: encTok,
@@ -105,7 +115,12 @@ func (r *uplinkRoutes) LoginExchange(ctx context.Context, stream pd.Uplink_Login
 		return pd.ErrBrokeProto
 	}
 
-	if !bytes.Equal(step2.Step2.Token, tok) {
+	recvToken := step2.Step2.Token
+	if len(recvToken) == 0 {
+		return pd.ErrZeroLenArg
+	}
+
+	if !bytes.Equal(recvToken, tok) {
 		return pd.ErrAuthFail
 	}
 
@@ -138,7 +153,13 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewU
 		return nil, pd.ErrBrokenKey
 	}
 
-	user, err := r.u.register(ureq.Name, ureq.Pass, ureq.PublicKey, ureq.EncPrivateKey)
+	name, pass, pk, epk, iv, salt := ureq.Name, ureq.Pass, ureq.PublicKey, ureq.EncPrivateKey, ureq.KeyIv, ureq.KeySalt
+
+	if len(name) == 0 || len(pass) == 0 || len(pk) == 0 || len(iv) == 0 || len(salt) == 0 {
+		return nil, pd.ErrZeroLenArg
+	}
+
+	user, err := r.u.register(name, pass, pk, epk, iv, salt)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +178,13 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewU
 }
 
 func (r *uplinkRoutes) Resume(ctx context.Context, ses *pd.SessInfo) (*pd.BoolResp, error) {
-	res, err := r.u.checkSession(ses.SessionId, ses.Uid)
+	sessID, UID := ses.SessionId, ses.Uid
+
+	if UID < 1 || len(sessID) == 0 {
+		return nil, pd.ErrZeroLenArg
+	}
+
+	res, err := r.u.checkSession(sessID, UID)
 	if err != nil {
 		return nil, err
 	}
