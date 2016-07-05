@@ -13,6 +13,7 @@
 package uplink
 
 import (
+	"runtime/debug"
 	"strings"
 
 	"github.com/dchest/uniuri"
@@ -22,6 +23,7 @@ import (
 
 func (u *Uplink) serverFault(e error) error {
 	if e != nil {
+		debug.PrintStack()
 		u.Println(e)
 		return pd.ServerFault(e)
 	}
@@ -113,7 +115,7 @@ func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invi
 }
 
 func (u *Uplink) loginUser(name, pass string) (user User, err error) {
-	err = u.serverFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)").Scan(&user))
+	err = u.serverFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)", name, pass).Scan(&user))
 
 	if err == nil && user.ID == 0 {
 		err = pd.ErrAuthFail

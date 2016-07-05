@@ -104,7 +104,7 @@ func (r *uplinkRoutes) LoginExchange(stream pd.Uplink_LoginExchangeServer) error
 
 	tok, encTok, err := genTok(user.PublicKey)
 	if err != nil {
-		return pd.ServerFault(err)
+		return r.u.serverFault(err)
 	}
 
 	resp := &pd.LoginResp{

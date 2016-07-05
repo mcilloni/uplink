@@ -121,18 +121,31 @@ $$;
 CREATE OR REPLACE FUNCTION invert_values() RETURNS TRIGGER
   LANGUAGE plpgsql
   AS $$
+    DECLARE TMP RECORD;
   BEGIN
-    UPDATE NEW SET  user1 = user2, user2 = user1;
+    SELECT NEW.user1 INTO TMP;
+    SELECT NEW.user2 INTO NEW.user1;
+    SELECT TMP INTO NEW.user2;
 
     RETURN NEW;
   END
 $$;
 
+CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    SELECT CRYPT(NEW.authpass, GEN_SALT('bf', 10)) INTO NEW.authpass;
+
+    RETURN NEW;
+  END
+$$;
 
 CREATE TRIGGER before_insert_message BEFORE INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE check_membership();
 CREATE TRIGGER after_delete_member AFTER DELETE ON members FOR EACH ROW EXECUTE PROCEDURE remove_empty_conv();
 CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE check_membership();
 CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW WHEN (NEW.user1 > NEW.user2) EXECUTE PROCEDURE invert_values();
+CREATE TRIGGER before_insert_users BEFORE INSERT ON users FOR EACH ROW EXECUTE PROCEDURE hash_password();
 
 
 CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOLEAN

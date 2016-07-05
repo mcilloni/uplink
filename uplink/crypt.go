@@ -32,15 +32,15 @@ func checkKey(pk []byte) bool {
 
 func genTok(pk []byte) (tok, encTok []byte, err error) {
 	pubKeyIface, _ := x509.ParsePKIXPublicKey(pk) // already checked on insertion
-	rsaPubKey, _ := pubKeyIface.(*rsa.PublicKey)  // already checked, too
+	rsaPubKey := pubKeyIface.(*rsa.PublicKey)     // already checked, too
 
-	tok = make([]byte, 256)
+	tok = make([]byte, 32)
 
 	if _, err = rand.Read(tok); err != nil {
 		return
 	}
 
-	encTok, err = rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPubKey, tok, []byte("ver_tok"))
+	encTok, err = rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPubKey, tok, nil)
 
 	return
 }
