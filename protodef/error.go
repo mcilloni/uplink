@@ -71,4 +71,7 @@ var (
 
 	// ErrNoMetadata means that the caller forgot to set metadata.
 	ErrNoMetadata = grpc.Errorf(codes.InvalidArgument, "ENOMETADATA: no metadata supplied")
+
+	// ErrPassTooShort means that the password given during registration is too short.
+	ErrPassTooShort = grpc.Errorf(codes.InvalidArgument, "EPASSTOOSHORT: password too short")
 )

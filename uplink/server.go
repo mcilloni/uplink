@@ -35,18 +35,25 @@ func (u *Uplink) serve(conn net.Conn) {
 
 // Start starts a previously configured Uplink instance.
 func (u *Uplink) Start() (err error) {
-	if err = u.connectDB(u.cfg.DBConnInfo); err != nil {
+	err = u.connectDB(u.cfg.DBConnInfo)
+
+	if err != nil {
 		return
 	}
 
-	if listener, err := net.Listen("tcp", u.cfg.ConnInfo); err == nil {
-		defer listener.Close()
+	listener, err := net.Listen("tcp", u.cfg.ConnInfo)
+	if err != nil {
+		return
+	}
 
-		srv := grpc.NewServer()
-		pd.RegisterUplinkServer(srv, newRoute(u))
-		if err = srv.Serve(listener); err != nil {
-			u.Fatalln(err)
-		}
+	defer listener.Close()
+
+	srv := grpc.NewServer()
+	pd.RegisterUplinkServer(srv, newRoute(u))
+
+	err = srv.Serve(listener)
+	if err != nil {
+		u.Fatalln(err)
 	}
 
 	return

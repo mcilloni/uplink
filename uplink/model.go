@@ -15,14 +15,18 @@ package uplink
 import (
 	"strings"
 
+	"github.com/dchest/uniuri"
 	"github.com/galeone/igor"
 	pd "github.com/mcilloni/uplink/protodef"
 )
 
 func (u *Uplink) serverFault(e error) error {
-	u.Println(e)
+	if e != nil {
+		u.Println(e)
+		return pd.ServerFault(e)
+	}
 
-	return pd.ServerFault(e)
+	return nil
 }
 
 func (u *Uplink) connectDB(connStr string) error {
@@ -38,7 +42,7 @@ func (u *Uplink) connectDB(connStr string) error {
 }
 
 func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
-	err = u.serverFault(u.db.Select("valid_session(?,?)", sessid, uid).Scan(&res))
+	err = u.serverFault(u.db.Model(Session{}).Select("valid_session(?,?)", sessid, uid).Scan(&res))
 
 	return
 }
@@ -135,7 +139,7 @@ func (u *Uplink) newMessage(conv int64, sender int64, body []byte) (msg Message,
 }
 
 func (u *Uplink) newSession(uid int64) (session Session, err error) {
-	session = Session{UID: uid}
+	session = Session{UID: uid, SessionID: uniuri.NewLen(88)}
 	e := u.db.Create(&session)
 
 	return session, u.serverFault(e)

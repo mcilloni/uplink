@@ -135,11 +135,11 @@ CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUT
 CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW WHEN (NEW.user1 > NEW.user2) EXECUTE PROCEDURE invert_values();
 
 
-CREATE OR REPLACE FUNCTION valid_session(sessid TEXT, uid BIGINT) RETURNS BOOLEAN
+CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOLEAN
   LANGUAGE plpgsql
   AS $$
   BEGIN
-    SELECT 1 FROM sessions S WHERE S.session_id = sessid AND S.uid = uid AND S.acc_time > TIMEZONE('utc'::TEXT, (NOW() - (30 * interval '1 day')));
+    PERFORM(SELECT 1 FROM sessions S WHERE S.session_id = _sessid AND S.uid = _uid AND S.acc_time > TIMEZONE('utc'::TEXT, (NOW() - (30 * interval '1 day'))));
 
     IF FOUND THEN
       UPDATE sessions SET acc_time = TIMEZONE('utc'::TEXT, NOW());

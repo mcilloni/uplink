@@ -25,6 +25,7 @@ func main() {
 	logger := log.New(os.Stderr, "uplink:", log.LstdFlags)
 
 	up, err := uplink.New(uplink.Config{
+		ConnInfo:   ":4444",
 		DBConnInfo: "user=uplink password=linkie dbname=uplink sslmode=disable",
 	}, logger)
 
