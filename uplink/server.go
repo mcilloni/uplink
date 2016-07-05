@@ -25,8 +25,10 @@ import (
 // Uplink instance structure.
 type Uplink struct {
 	*log.Logger
-	cfg Config
-	db  *igor.Database
+
+	cfg        Config
+	db         *igor.Database
+	dispatcher *dispatcher
 }
 
 func (u *Uplink) serve(conn net.Conn) {
@@ -50,6 +52,8 @@ func (u *Uplink) Start() (err error) {
 
 	srv := grpc.NewServer()
 	pd.RegisterUplinkServer(srv, newRoute(u))
+
+	u.dispatcher = startDispatcher()
 
 	err = srv.Serve(listener)
 	if err != nil {

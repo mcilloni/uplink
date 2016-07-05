@@ -18,8 +18,8 @@ service Uplink {
   rpc Exists (Username) returns (BoolResp);
   rpc LoginExchange (stream LoginReq) returns (stream LoginResp);
   rpc NewUser (NewUserReq) returns (NewUserResp);
+  rpc Notifications(Empty) returns (stream Notification);
   rpc Ping (Empty) returns (BoolResp);
-  rpc Resume (SessInfo) returns (BoolResp);
 }
 
 message Empty {}
@@ -84,3 +84,15 @@ message SessInfo {
   int64 uid = 1;
   string session_id = 2;
 }
+
+message Notification {
+  enum Type {
+    MESSAGE = 0;
+    REQUEST = 1;
+    INVITE = 2;
+  };
+
+  Type type = 1;
+  string sender_name = 2;
+  bytes body = 3;
+};

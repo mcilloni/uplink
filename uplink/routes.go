@@ -31,31 +31,31 @@ func newRoute(u *Uplink) *uplinkRoutes {
 	return &uplinkRoutes{u: u}
 }
 
-func (r *uplinkRoutes) checkSession(ctx context.Context) (bool, error) {
+func (r *uplinkRoutes) checkSession(ctx context.Context) (int64, bool, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
-		return false, pd.ErrNoMetadata
+		return -1, false, pd.ErrNoMetadata
 	}
 
 	uidStrSlice, okUID := md["uid"]
 	sessidSlice, okSessid := md["sessid"]
 
 	if !okUID || !okSessid || len(uidStrSlice) != 1 || len(sessidSlice) != 1 {
-		return false, pd.ErrBrokeProto
+		return -1, false, pd.ErrBrokeProto
 	}
 
 	sessid := sessidSlice[0]
 	uid, err := strconv.ParseInt(uidStrSlice[0], 10, 64)
 	if err != nil || uid < 1 {
-		return false, pd.ErrBrokeProto
+		return -1, false, pd.ErrBrokeProto
 	}
 
 	res, err := r.u.checkSession(sessid, uid)
 	if err != nil {
-		return false, err
+		return -1, false, err
 	}
 
-	return res, nil
+	return uid, res, nil
 }
 
 func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
@@ -200,27 +200,40 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewU
 	}, nil
 }
 
+func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_NotificationsServer) error {
+	ctx := stream.Context()
+	uid, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return err
+	}
+
+	if !valid {
+		return pd.ErrNotAuthenticated
+	}
+
+	sink := make(chan *pd.Notification)
+	defer close(sink)
+
+	r.u.dispatcher.addSink(uid, sink)
+	defer r.u.dispatcher.removeSink(uid, sink)
+
+	for {
+		if err := stream.Send(<-sink); err != nil {
+			if err == io.EOF {
+				return nil
+			}
+
+			return err
+		}
+	}
+}
+
 func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, error) {
-	valid, err := r.checkSession(ctx)
+	_, valid, err := r.checkSession(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return &pd.BoolResp{Success: valid}, nil
-}
-
-func (r *uplinkRoutes) Resume(ctx context.Context, ses *pd.SessInfo) (*pd.BoolResp, error) {
-	sessID, UID := ses.SessionId, ses.Uid
-
-	if UID < 1 || len(sessID) == 0 {
-		return nil, pd.ErrZeroLenArg
-	}
-
-	res, err := r.u.checkSession(sessID, UID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pd.BoolResp{Success: res}, nil
 }
