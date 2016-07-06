@@ -62,6 +62,18 @@ func (u *Uplink) existsUser(name string) (foundUser bool, err error) {
 	return
 }
 
+func (u *Uplink) getConversation(convID int64) (conv *Conversation, err error) {
+	conv = new(Conversation)
+
+	err = u.serverFault(u.db.Model(Conversation{}).Where(&Conversation{ID: convID}).Scan(conv))
+
+	if err == nil && conv.ID == 0 {
+		err = pd.ErrNoConv
+	}
+
+	return
+}
+
 func (u *Uplink) getInvite(inviteID int64) (invite *Invite, err error) {
 	invite = new(Invite)
 

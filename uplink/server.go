@@ -96,10 +96,17 @@ func (u *Uplink) startDispatcher() {
 			return
 		}
 
+		conversation, err := u.getConversation(invite.Conversation)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
 		u.dispatcher.Notify(invite.Receiver, &pd.Notification{
 			Type:       pd.Notification_INVITE,
 			SenderName: senderName,
-			ConvId:     invite.Conversation,
+			ConvId:     conversation.ID,
+			Body:       []byte(conversation.Name),
 		})
 	})
 
