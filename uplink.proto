@@ -88,11 +88,12 @@ message SessInfo {
 message Notification {
   enum Type {
     MESSAGE = 0;
-    REQUEST = 1;
+    FRIENDSHIP = 1;
     INVITE = 2;
   };
 
   Type type = 1;
   string sender_name = 2;
-  bytes body = 3;
+  int64 conv_id = 3;
+  bytes body = 4;
 };

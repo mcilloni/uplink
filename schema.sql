@@ -58,11 +58,11 @@ ALTER TABLE invites OWNER TO uplink;
 
 CREATE TABLE friendships (
   id BIGSERIAL NOT NULL PRIMARY KEY,
-  user1 BIGINT NOT NULL REFERENCES users ON DELETE CASCADE,
-  user2 BIGINT NOT NULL REFERENCES users ON DELETE CASCADE,
+  sender BIGINT NOT NULL REFERENCES users ON DELETE CASCADE,
+  receiver BIGINT NOT NULL REFERENCES users ON DELETE CASCADE,
   established BOOLEAN NOT NULL DEFAULT FALSE,
-  CONSTRAINT UNIQUE_FRIENDSHIP UNIQUE (user1,user2),
-  CONSTRAINT NO_SELF_FRIEND CHECK (user1 <> user2)
+  CONSTRAINT UNIQUE_FRIENDSHIP UNIQUE (sender,receiver),
+  CONSTRAINT NO_SELF_FRIEND CHECK (sender <> receiver)
 );
 ALTER TABLE friendships OWNER TO uplink;
 
@@ -118,14 +118,14 @@ CREATE OR REPLACE FUNCTION check_invite() RETURNS TRIGGER
 	END
 $$;
 
-CREATE OR REPLACE FUNCTION invert_values() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION check_friendship() RETURNS TRIGGER
   LANGUAGE plpgsql
   AS $$
     DECLARE TMP RECORD;
   BEGIN
-    SELECT NEW.user1 INTO TMP;
-    SELECT NEW.user2 INTO NEW.user1;
-    SELECT TMP INTO NEW.user2;
+    IF EXISTS(SELECT 1 FROM friendships WHERE sender = NEW.receiver AND receiver = NEW.sender) THEN
+      RAISE EXCEPTION 'ALREADY_FRIENDS';
+    END IF;
 
     RETURN NEW;
   END
@@ -141,10 +141,43 @@ CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER
   END
 $$;
 
+CREATE OR REPLACE FUNCTION notify_new_message() RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    PERFORM PG_NOTIFY('new_messages', CAST(NEW.id AS TEXT));
+
+    RETURN NEW;
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION notify_new_invite() RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    PERFORM PG_NOTIFY('new_invites', CAST(NEW.id AS TEXT));
+
+    RETURN NEW;
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION notify_new_friendship() RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    PERFORM PG_NOTIFY('new_friendships', CAST(NEW.id AS TEXT));
+
+    RETURN NEW;
+  END
+$$;
+
 CREATE TRIGGER before_insert_message BEFORE INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE check_membership();
+CREATE TRIGGER after_insert_message AFTER INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE notify_new_message();
 CREATE TRIGGER after_delete_member AFTER DELETE ON members FOR EACH ROW EXECUTE PROCEDURE remove_empty_conv();
 CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE check_membership();
-CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW WHEN (NEW.user1 > NEW.user2) EXECUTE PROCEDURE invert_values();
+CREATE TRIGGER after_insert_invite AFTER INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE notify_new_invite();
+CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE check_friendship();
+CREATE TRIGGER after_insert_friendship AFTER INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE notify_new_friendship();
 CREATE TRIGGER before_insert_users BEFORE INSERT ON users FOR EACH ROW EXECUTE PROCEDURE hash_password();
 
 

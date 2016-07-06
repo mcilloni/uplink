@@ -64,10 +64,10 @@ type Invite struct {
 // Friendship represents a relationship between two users that contacted each
 // other, and appear in each friendlist.
 type Friendship struct {
-	ID            int64 `igor:"primary_key"`
-	User1         int64
-	User2         int64
-	EstablishTime time.Time `sql:"default:(now() at time zone 'utc')"`
+	ID          int64 `igor:"primary_key"`
+	Sender      int64
+	Receiver    int64
+	Established bool
 }
 
 // Session represents a session.

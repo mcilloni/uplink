@@ -93,7 +93,7 @@ func (d *dispatcher) start() {
 			d.notify(msg.UID, msg.Notification)
 
 		case sink := <-d.removeSinkChan:
-			d.RemoveSink(sink.UID, sink.Sink)
+			d.removeSink(sink.UID, sink.Sink)
 		}
 	}
 }

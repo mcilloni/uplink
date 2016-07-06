@@ -44,6 +44,12 @@ var (
 	// ErrNoUser means that the requested user doesn't exist.
 	ErrNoUser = grpc.Errorf(codes.NotFound, "ENOUSER: no such user")
 
+	// ErrNoFriendship means that the requested friendship doesn't exist.
+	ErrNoFriendship = grpc.Errorf(codes.NotFound, "ENOFRIENDSHIP: no such user")
+
+	// ErrNoRequest means that the user never received the requested friendship request.
+	ErrNoRequest = grpc.Errorf(codes.NotFound, "ENOREQUEST: no friendship request")
+
 	// ErrNotInvited means that the current user has no invite into the conversation.
 	ErrNotInvited = grpc.Errorf(codes.PermissionDenied, "ENOTINVITED: user not invited to the given conversation")
 

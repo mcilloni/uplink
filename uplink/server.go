@@ -13,8 +13,10 @@
 package uplink
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"strconv"
 
 	"google.golang.org/grpc"
 
@@ -31,8 +33,108 @@ type Uplink struct {
 	dispatcher *dispatcher
 }
 
-func (u *Uplink) serve(conn net.Conn) {
+func (u *Uplink) startDispatcher() {
+	u.dispatcher = startDispatcher()
 
+	u.db.Listen("new_messages", func(payload ...string) {
+		if len(payload) != 1 {
+			u.Panicln("totally broken payload received by notification listener")
+		}
+
+		msgID, err := strconv.ParseInt(payload[0], 10, 64)
+		if err != nil {
+			u.Panicln("totally broken payload received by notification listener")
+		}
+
+		message, err := u.getMessage(msgID)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
+		members, err := u.getMessageReceivers(message)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
+		for _, member := range members {
+			name, err := u.getUsername(member.UID)
+			if err != nil {
+				u.Println(err)
+				return
+			}
+
+			u.dispatcher.Notify(member.ID, &pd.Notification{
+				Type:       pd.Notification_MESSAGE,
+				SenderName: name,
+				ConvId:     message.Conversation,
+				Body:       message.Body,
+			})
+		}
+	})
+
+	u.db.Listen("new_invites", func(payload ...string) {
+		if len(payload) != 1 {
+			u.Panicln("totally broken payload received by invite listener")
+		}
+
+		inviteID, err := strconv.ParseInt(payload[0], 10, 64)
+		if err != nil {
+			u.Panicln("totally broken payload received by invite listener")
+		}
+
+		invite, err := u.getInvite(inviteID)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
+		senderName, err := u.getUsername(invite.Sender)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
+		u.dispatcher.Notify(invite.Receiver, &pd.Notification{
+			Type:       pd.Notification_INVITE,
+			SenderName: senderName,
+			ConvId:     invite.Conversation,
+		})
+	})
+
+	u.db.Listen("new_friendships", func(payload ...string) {
+		if len(payload) != 1 {
+			u.Panicln("totally broken payload received by friend_req listener")
+		}
+
+		friendID, err := strconv.ParseInt(payload[0], 10, 64)
+		if err != nil {
+			u.Panicln("totally broken payload received by friend_req listener")
+		}
+
+		friendship, err := u.getFriendship(friendID)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
+		if friendship.Established {
+			u.Println(fmt.Sprintf("newly requested friendship %d is already established", friendID))
+			return
+		}
+
+		senderName, err := u.getUsername(friendship.Sender)
+		if err != nil {
+			u.Println(err)
+			return
+		}
+
+		u.dispatcher.Notify(friendship.Receiver, &pd.Notification{
+			Type:       pd.Notification_FRIENDSHIP,
+			SenderName: senderName,
+		})
+	})
 }
 
 // Start starts a previously configured Uplink instance.
@@ -53,7 +155,7 @@ func (u *Uplink) Start() (err error) {
 	srv := grpc.NewServer()
 	pd.RegisterUplinkServer(srv, newRoute(u))
 
-	u.dispatcher = startDispatcher()
+	u.startDispatcher()
 
 	err = srv.Serve(listener)
 	if err != nil {
