@@ -16,21 +16,16 @@ import "time"
 
 // User represents an user of the service.
 type User struct {
-	ID            int64 `igor:"primary_key"`
-	Authpass      string
-	Name          string
-	RegTime       time.Time `sql:"default:(now() at time zone 'utc')"`
-	PublicKey     []byte
-	EncPrivateKey []byte
-	KeyIv         []byte
-	KeySalt       []byte
+	ID       int64 `igor:"primary_key"`
+	Authpass string
+	Name     string
+	RegTime  time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 
 // Conversation represents a conversation between many Users.
 type Conversation struct {
 	ID           int64 `igor:"primary_key"`
 	Name         string
-	KeyHash      []byte
 	CreationTime time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 
@@ -40,7 +35,6 @@ type Member struct {
 	UID          int64
 	Conversation int64
 	JoinTime     time.Time `sql:"default:(now() at time zone 'utc')"`
-	EncKey       []byte
 }
 
 // Message represents a message belonging to a Conversation.
@@ -49,7 +43,7 @@ type Message struct {
 	Conversation int64
 	Sender       int64
 	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
-	Body         []byte
+	Body         string
 }
 
 // Invite represents an invite to a given Conversation.
@@ -58,7 +52,6 @@ type Invite struct {
 	Conversation int64
 	Sender       int64
 	Receiver     int64
-	RecvEncKey   []byte
 	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 

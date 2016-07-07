@@ -131,6 +131,8 @@ func (u *Uplink) getFriendship(friendID int64) (friendship *Friendship, err erro
 }
 
 func (u *Uplink) getUser(name string) (user *User, err error) {
+	user = new(User)
+
 	err = u.serverFault(u.db.Model(User{}).Where(&User{Name: name}).Scan(user))
 
 	if err == nil && user.ID == 0 {
@@ -141,6 +143,8 @@ func (u *Uplink) getUser(name string) (user *User, err error) {
 }
 
 func (u *Uplink) getUserFromID(UID int64) (user *User, err error) {
+	user = new(User)
+
 	err = u.serverFault(u.db.Model(User{}).Where(&User{ID: UID}).Scan(user))
 
 	if err == nil && user.ID == 0 {
@@ -170,19 +174,19 @@ func (u *Uplink) getUsersOf(conv int64) (users []User, err error) {
 	return
 }
 
-func (u *Uplink) initConversation(keyHash []byte) (conv *Conversation, err error) {
-	conv.KeyHash = keyHash
+func (u *Uplink) initConversation() (conv *Conversation, err error) {
+	conv = new(Conversation)
+
 	err = u.serverFault(u.db.Create(conv))
 
 	return
 }
 
-func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invite *Invite, err error) {
+func (u *Uplink) invite(receiver, sender, convID int64) (invite *Invite, err error) {
 	invite = &Invite{
 		Conversation: convID,
 		Sender:       sender,
 		Receiver:     receiver,
-		RecvEncKey:   recvEncKey,
 	}
 
 	err = u.serverFault(u.db.Model(Invite{}).Create(invite))
@@ -191,6 +195,8 @@ func (u *Uplink) invite(receiver, sender, convID int64, recvEncKey []byte) (invi
 }
 
 func (u *Uplink) loginUser(name, pass string) (user *User, err error) {
+	user = new(User)
+
 	err = u.serverFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)", name, pass).Scan(user))
 
 	if err == nil && user.ID == 0 {
@@ -200,7 +206,7 @@ func (u *Uplink) loginUser(name, pass string) (user *User, err error) {
 	return
 }
 
-func (u *Uplink) newMessage(conv int64, sender int64, body []byte) (msg *Message, err error) {
+func (u *Uplink) newMessage(conv int64, sender int64, body string) (msg *Message, err error) {
 	msg = &Message{
 		Conversation: conv,
 		Sender:       sender,
@@ -223,14 +229,10 @@ func (u *Uplink) newSession(uid int64) (session *Session, err error) {
 	return session, u.serverFault(e)
 }
 
-func (u *Uplink) register(name, pass string, pk, epk, keyIv, keySalt []byte) (user *User, err error) {
+func (u *Uplink) register(name, pass string) (user *User, err error) {
 	user = &User{
-		Name:          name,
-		Authpass:      pass,
-		PublicKey:     pk,
-		EncPrivateKey: epk,
-		KeyIv:         keyIv,
-		KeySalt:       keySalt,
+		Name:     name,
+		Authpass: pass,
 	}
 
 	e := u.db.Create(user)

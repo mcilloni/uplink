@@ -16,8 +16,9 @@ option java_outer_classname = "UplinkProto";
 
 service Uplink {
   rpc Exists (Username) returns (BoolResp);
-  rpc LoginExchange (stream LoginReq) returns (stream LoginResp);
-  rpc NewUser (NewUserReq) returns (NewUserResp);
+  rpc Friends (Empty) returns (FriendList);
+  rpc Login (AuthInfo) returns (SessInfo);
+  rpc NewUser (AuthInfo) returns (SessInfo);
   rpc Notifications(Empty) returns (stream Notification);
   rpc Ping (Empty) returns (BoolResp);
 }
@@ -28,26 +29,6 @@ message BoolResp {
   bool success = 1;
 }
 
-message NewUserReq {
-  string name = 1;
-  string pass = 2;
-  bytes public_key = 3;
-  bytes enc_private_key = 4;
-  bytes key_iv = 5;
-  bytes key_salt = 6;
-}
-
-message NewUserResp {
-  SessInfo session_info = 1;
-}
-
-message LoginReq {
-  oneof login_steps {
-    AuthInfo step1 = 1;
-    Challenge step2 = 2;
-  }
-}
-
 message Username {
   string name = 1;
 }
@@ -55,29 +36,6 @@ message Username {
 message AuthInfo {
   string name = 1;
   string pass = 2;
-}
-
-message Challenge {
-  bytes token = 1;
-}
-
-message LoginResp {
-  oneof login_steps {
-    LoginAccepted step1 = 1;
-    SessInfo step2 = 2;
-  }
-}
-
-message LoginAccepted {
-  UserInfo user_info = 1;
-  Challenge challenge = 2;
-}
-
-message UserInfo {
-  bytes public_key = 1;
-  bytes enc_private_key = 2;
-  bytes key_iv = 5;
-  bytes key_salt = 6;
 }
 
 message SessInfo {
@@ -95,5 +53,9 @@ message Notification {
   Type type = 1;
   string sender_name = 2;
   int64 conv_id = 3;
-  bytes body = 4;
+  string body = 4;
+};
+
+message FriendList {
+  repeated string friends = 1;
 };

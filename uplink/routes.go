@@ -13,7 +13,6 @@
 package uplink
 
 import (
-	"bytes"
 	"io"
 	"strconv"
 
@@ -72,117 +71,43 @@ func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.B
 	return &pd.BoolResp{Success: found}, nil
 }
 
-func (r *uplinkRoutes) LoginExchange(stream pd.Uplink_LoginExchangeServer) error {
-	step, err := stream.Recv()
+func (r *uplinkRoutes) Friends(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
+	return nil, nil
+}
 
-	if err == io.EOF {
-		return pd.ErrBrokeProto
-	}
-
-	if err != nil {
-		return err
-	}
-
-	step1, ok := step.LoginSteps.(*pd.LoginReq_Step1)
-
-	if !ok {
-		return pd.ErrBrokeProto
-	}
-
-	name := step1.Step1.Name
-	authpass := step1.Step1.Pass
+func (r *uplinkRoutes) Login(_ context.Context, authInfo *pd.AuthInfo) (*pd.SessInfo, error) {
+	name := authInfo.Name
+	authpass := authInfo.Pass
 
 	if len(name) == 0 || len(authpass) == 0 {
-		return pd.ErrZeroLenArg
+		return nil, pd.ErrZeroLenArg
 	}
 
 	user, err := r.u.loginUser(name, authpass)
 
 	if err != nil {
-		return err
-	}
-
-	tok, encTok, err := genTok(user.PublicKey)
-	if err != nil {
-		return r.u.serverFault(err)
-	}
-
-	resp := &pd.LoginResp{
-		LoginSteps: &pd.LoginResp_Step1{
-			Step1: &pd.LoginAccepted{
-				UserInfo: &pd.UserInfo{
-					PublicKey:     user.PublicKey,
-					EncPrivateKey: user.EncPrivateKey,
-					KeyIv:         user.KeyIv,
-					KeySalt:       user.KeySalt,
-				},
-				Challenge: &pd.Challenge{
-					Token: encTok,
-				},
-			},
-		},
-	}
-
-	if err = stream.Send(resp); err != nil {
-		return err
-	}
-
-	step, err = stream.Recv()
-	if err == io.EOF {
-		return pd.ErrBrokeProto
-	}
-
-	if err != nil {
-		return err
-	}
-
-	step2, ok := step.LoginSteps.(*pd.LoginReq_Step2)
-	if !ok {
-		return pd.ErrBrokeProto
-	}
-
-	recvToken := step2.Step2.Token
-	if len(recvToken) == 0 {
-		return pd.ErrZeroLenArg
-	}
-
-	if !bytes.Equal(recvToken, tok) {
-		return pd.ErrAuthFail
+		return nil, err
 	}
 
 	session, err := r.u.newSession(user.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	resp = &pd.LoginResp{
-		LoginSteps: &pd.LoginResp_Step2{
-			Step2: &pd.SessInfo{
-				Uid:       user.ID,
-				SessionId: session.SessionID,
-			},
-		},
-	}
-
-	if err = stream.Send(resp); err != nil {
-		return err
-	}
-
-	return nil
+	return &pd.SessInfo{
+		Uid:       user.ID,
+		SessionId: session.SessionID,
+	}, nil
 }
 
-func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewUserResp, error) {
-	if !checkKey(ureq.PublicKey) {
-		return nil, pd.ErrBrokenKey
-	}
+func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.AuthInfo) (*pd.SessInfo, error) {
+	name, pass := ureq.Name, ureq.Pass
 
-	name, pass, pk, epk, iv, salt := ureq.Name, ureq.Pass, ureq.PublicKey, ureq.EncPrivateKey, ureq.KeyIv, ureq.KeySalt
-
-	if len(name) == 0 || len(pass) == 0 || len(pk) == 0 || len(iv) == 0 || len(salt) == 0 {
+	if len(name) == 0 || len(pass) == 0 {
 		return nil, pd.ErrZeroLenArg
 	}
 
-	user, err := r.u.register(name, pass, pk, epk, iv, salt)
+	user, err := r.u.register(name, pass)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +117,9 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.NewUserReq) (*pd.NewU
 		return nil, err
 	}
 
-	return &pd.NewUserResp{
-		SessionInfo: &pd.SessInfo{
-			Uid:       user.ID,
-			SessionId: session.SessionID,
-		},
+	return &pd.SessInfo{
+		Uid:       user.ID,
+		SessionId: session.SessionID,
 	}, nil
 }
 

@@ -69,9 +69,6 @@ var (
 	// ErrNotAuthenticated means that the user is not authenticated.
 	ErrNotAuthenticated = grpc.Errorf(codes.Unauthenticated, "ENOTAUTHENTICATED: not autenticated")
 
-	// ErrBrokenKey means that the public key provided is broken.
-	ErrBrokenKey = grpc.Errorf(codes.InvalidArgument, "EBROKENKEY: broken public key")
-
 	// ErrZeroLenArg means that the caller sent an empty parameter when he shouldn't.
 	ErrZeroLenArg = grpc.Errorf(codes.InvalidArgument, "EZEROLENARG: argument has zero length")
 

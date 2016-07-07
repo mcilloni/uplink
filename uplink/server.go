@@ -106,7 +106,7 @@ func (u *Uplink) startDispatcher() {
 			Type:       pd.Notification_INVITE,
 			SenderName: senderName,
 			ConvId:     conversation.ID,
-			Body:       []byte(conversation.Name),
+			Body:       conversation.Name,
 		})
 	})
 
