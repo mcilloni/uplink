@@ -28,9 +28,13 @@ func ServerFault(e error) error {
 }
 
 var (
-	// ErrAlreadyInvited means that a given has already been invited to a given
+	// ErrAlreadyInvited means that a given user has already been invited to a given
 	// conversation.
 	ErrAlreadyInvited = grpc.Errorf(codes.AlreadyExists, "EALREADYINVITED: user already invited")
+
+	// ErrAlreadyFriends means that a new friendship relationship between two users
+	// cannot be established because they're friends already.
+	ErrAlreadyFriends = grpc.Errorf(codes.AlreadyExists, "EALREADYFRIENDS: users already friends")
 
 	// ErrEmptyConv means that a given conversation is empty.
 	ErrEmptyConv = grpc.Errorf(codes.NotFound, "EEMPTYCONV: empty conversation")
@@ -77,4 +81,7 @@ var (
 
 	// ErrPassTooShort means that the password given during registration is too short.
 	ErrPassTooShort = grpc.Errorf(codes.InvalidArgument, "EPASSTOOSHORT: password too short")
+
+	// ErrReservedUser means that the user tried to access information about a reserved user.
+	ErrReservedUser = grpc.Errorf(codes.PermissionDenied, "ERESERVEDUSER: the requested user is reserved")
 )

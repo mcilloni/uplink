@@ -22,10 +22,26 @@ import (
 	pd "github.com/mcilloni/uplink/protodef"
 )
 
+func isReservedID(uid int64) bool {
+	return uid == 1
+}
+
+func isReservedName(name string) bool {
+	return name == "uplink"
+}
+
+func (u *Uplink) printErr(e error) {
+	u.printStack(e.Error())
+}
+
+func (u *Uplink) printStack(msg string) {
+	debug.PrintStack()
+	u.Println(msg)
+}
+
 func (u *Uplink) serverFault(e error) error {
 	if e != nil {
-		debug.PrintStack()
-		u.Println(e)
+		u.printErr(e)
 		return pd.ServerFault(e)
 	}
 
@@ -44,13 +60,33 @@ func (u *Uplink) connectDB(connStr string) error {
 	return nil
 }
 
+func (u *Uplink) acceptFriendship(sender, receiver int64) error {
+	friendship, err := u.getPendingFriendshipOf(sender, receiver)
+	if err != nil {
+		return err
+	}
+
+	if friendship.ID == 0 {
+		return pd.ErrNoRequest
+	}
+
+	friendship.Established = true
+
+	return u.serverFault(u.db.Updates(friendship))
+}
+
 func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
+	if isReservedID(uid) {
+		return false, pd.ErrReservedUser
+	}
+
 	err = u.serverFault(u.db.Model(Session{}).Select("valid_session(?,?)", sessid, uid).Scan(&res))
 
 	return
 }
 
 func (u *Uplink) existsUser(name string) (foundUser bool, err error) {
+
 	_, err = u.getUser(name)
 
 	foundUser = err == nil
@@ -70,6 +106,45 @@ func (u *Uplink) getConversation(convID int64) (conv *Conversation, err error) {
 	if err == nil && conv.ID == 0 {
 		err = pd.ErrNoConv
 	}
+
+	return
+}
+
+func (u *Uplink) getFriendship(friendID int64) (friendship *Friendship, err error) {
+	friendship = new(Friendship)
+
+	err = u.serverFault(u.db.Model(Friendship{}).Where(&Friendship{ID: friendID, Established: true}).Scan(friendship))
+
+	if err == nil && friendship.ID == 0 {
+		err = pd.ErrNoFriendship
+	}
+
+	return
+}
+
+func (u *Uplink) getPendingFriendshipOf(sender, receiver int64) (friendship *Friendship, err error) {
+	friendship = new(Friendship)
+
+	err = u.serverFault(u.db.Model(Friendship{}).Where(&Friendship{
+		Sender:      sender,
+		Receiver:    receiver,
+		Established: false,
+	}).Scan(friendship))
+
+	if err == nil && friendship.ID == 0 {
+		err = pd.ErrNoFriendship
+	}
+
+	return
+}
+
+// getFriendships returns all the established Friendships of the given user.
+func (u *Uplink) getFriendships(user int64) (friendships []string, err error) {
+	err = u.serverFault(u.db.CTE(`WITH user_friends AS (
+		(SELECT sender AS friend_id FROM friendships WHERE receiver = ? AND established)
+		UNION
+		(SELECT receiver AS friend_id FROM friendships WHERE sender = ? AND established)
+	)`).Table("user_friends AS uf").Select("name").Joins("JOIN users ON users.id = uf.friend_id").Scan(&friendships))
 
 	return
 }
@@ -101,6 +176,12 @@ func (u *Uplink) getMessage(msgID int64) (msg *Message, err error) {
 	return
 }
 
+func (u *Uplink) getMessages(conv int64, limit, offset int) (msgs []Message, err error) {
+	err = u.serverFault(u.db.Model(Message{}).Where(&Message{Conversation: conv}).Limit(limit).Offset(offset).Scan(msgs))
+
+	return
+}
+
 func (u *Uplink) getMessageReceivers(msg *Message) (receivers []Member, err error) {
 	members := new(Member).TableName()
 	messages := new(Message).TableName()
@@ -112,25 +193,19 @@ func (u *Uplink) getMessageReceivers(msg *Message) (receivers []Member, err erro
 	return
 }
 
-func (u *Uplink) getMessages(conv int64, limit, offset int) (msgs []Message, err error) {
-	err = u.serverFault(u.db.Model(Message{}).Where(&Message{Conversation: conv}).Limit(limit).Offset(offset).Scan(msgs))
-
-	return
-}
-
-func (u *Uplink) getFriendship(friendID int64) (friendship *Friendship, err error) {
-	friendship = new(Friendship)
-
-	err = u.serverFault(u.db.Model(Friendship{}).Where(&Friendship{ID: friendID}).Scan(friendship))
-
-	if err == nil && friendship.ID == 0 {
-		err = pd.ErrNoFriendship
-	}
+// getPendingFriendships returns all the still pending Friendships of the given user.
+func (u *Uplink) getPendingFriendships(user int64) (friendships []string, err error) {
+	friendTable := new(Friendship).TableName()
+	err = u.serverFault(u.db.Table(friendTable).Select("name").Joins("JOIN users ON users.id = "+friendTable+".receiver").Where("sender = ?", user).Scan(&friendships))
 
 	return
 }
 
 func (u *Uplink) getUser(name string) (user *User, err error) {
+	if isReservedName(name) {
+		return nil, pd.ErrReservedUser
+	}
+
 	user = new(User)
 
 	err = u.serverFault(u.db.Model(User{}).Where(&User{Name: name}).Scan(user))
@@ -183,6 +258,10 @@ func (u *Uplink) initConversation() (conv *Conversation, err error) {
 }
 
 func (u *Uplink) invite(receiver, sender, convID int64) (invite *Invite, err error) {
+	if isReservedID(receiver) || isReservedID(sender) {
+		return nil, pd.ErrReservedUser
+	}
+
 	invite = &Invite{
 		Conversation: convID,
 		Sender:       sender,
@@ -195,6 +274,10 @@ func (u *Uplink) invite(receiver, sender, convID int64) (invite *Invite, err err
 }
 
 func (u *Uplink) loginUser(name, pass string) (user *User, err error) {
+	if isReservedName(name) {
+		return nil, pd.ErrReservedUser
+	}
+
 	user = new(User)
 
 	err = u.serverFault(u.db.Model(User{}).Where("name = ? AND authpass = CRYPT(?, authpass)", name, pass).Scan(user))
@@ -206,6 +289,25 @@ func (u *Uplink) loginUser(name, pass string) (user *User, err error) {
 	return
 }
 
+func (u *Uplink) newFriendship(sender int64, receiver int64) (friendship *Friendship, err error) {
+	if isReservedID(sender) || isReservedID(receiver) {
+		return nil, pd.ErrReservedUser
+	}
+
+	friendship = &Friendship{
+		Sender:   sender,
+		Receiver: receiver,
+	}
+
+	err = u.db.Create(friendship)
+
+	if err != nil && strings.Contains(err.Error(), "ALREADY_FRIENDS") {
+		return nil, pd.ErrAlreadyFriends
+	}
+
+	return friendship, u.serverFault(err)
+}
+
 func (u *Uplink) newMessage(conv int64, sender int64, body string) (msg *Message, err error) {
 	msg = &Message{
 		Conversation: conv,
@@ -213,16 +315,20 @@ func (u *Uplink) newMessage(conv int64, sender int64, body string) (msg *Message
 		Body:         body,
 	}
 
-	e := u.db.Create(msg)
+	err = u.db.Create(msg)
 
-	if e != nil && strings.Contains(e.Error(), "NOT_MEMBER") {
-		return msg, pd.ErrNotMember
+	if err != nil && strings.Contains(err.Error(), "NOT_MEMBER") {
+		return nil, pd.ErrNotMember
 	}
 
-	return msg, u.serverFault(e)
+	return msg, u.serverFault(err)
 }
 
 func (u *Uplink) newSession(uid int64) (session *Session, err error) {
+	if isReservedID(uid) {
+		return nil, pd.ErrReservedUser
+	}
+
 	session = &Session{UID: uid, SessionID: uniuri.NewLen(88)}
 	e := u.db.Create(session)
 
@@ -230,6 +336,10 @@ func (u *Uplink) newSession(uid int64) (session *Session, err error) {
 }
 
 func (u *Uplink) register(name, pass string) (user *User, err error) {
+	if isReservedName(name) {
+		return nil, pd.ErrReservedUser
+	}
+
 	user = &User{
 		Name:     name,
 		Authpass: pass,

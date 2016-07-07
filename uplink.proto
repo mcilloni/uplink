@@ -15,12 +15,15 @@ option java_package = "com.github.mcilloni.uplink";
 option java_outer_classname = "UplinkProto";
 
 service Uplink {
+  rpc AcceptFriendship (Username) returns (BoolResp);
   rpc Exists (Username) returns (BoolResp);
   rpc Friends (Empty) returns (FriendList);
   rpc Login (AuthInfo) returns (SessInfo);
   rpc NewUser (AuthInfo) returns (SessInfo);
   rpc Notifications(Empty) returns (stream Notification);
+  rpc PendingFriendships (Empty) returns (FriendList);
   rpc Ping (Empty) returns (BoolResp);
+  rpc RequestFriendship (Username) returns (BoolResp);
 }
 
 message Empty {}
@@ -46,12 +49,14 @@ message SessInfo {
 message Notification {
   enum Type {
     MESSAGE = 0;
-    FRIENDSHIP = 1;
-    INVITE = 2;
+    FRIENDSHIP_REQ = 1;
+    FRIENDSHIP_ACC = 2;
+    JOIN_REQ = 3;
+    JOIN_ACC = 4;
   };
 
   Type type = 1;
-  string sender_name = 2;
+  string user_name = 2;
   int64 conv_id = 3;
   string body = 4;
 };

@@ -73,7 +73,7 @@ CREATE OR REPLACE FUNCTION check_membership() RETURNS TRIGGER
 	LANGUAGE plpgsql
 	AS $$
 	BEGIN
-		IF NOT EXISTS(SELECT 1 FROM members WHERE conversation = NEW.conversation AND uid = NEW.sender) THEN
+		IF NOT EXISTS(SELECT 1 FROM members WHERE conversation = NEW.conversation AND uid = NEW.sender)  AND NEW.sender <> 1 THEN -- 'uplink' has uid = 1 and can do everything
 			RAISE EXCEPTION 'NOT_MEMBER';
 		END IF;
 
@@ -96,16 +96,19 @@ $$;
 CREATE OR REPLACE FUNCTION check_invite() RETURNS TRIGGER
 	LANGUAGE plpgsql
 	AS $$
+    DECLARE SENDER_ID BIGINT;
 	BEGIN
 		WITH RK AS (
 			DELETE FROM invites
 			WHERE conversation = NEW.conversation AND receiver = NEW.uid
-			RETURNING recv_enc_key
-		) SELECT RK.recv_enc_key INTO NEW.enc_key FROM RK;
+			RETURNING sender
+		) SELECT RK.sender INTO SENDER_ID FROM RK;
 
 		IF NOT FOUND THEN
 			RAISE EXCEPTION 'NOT_INVITED';
 		END IF;
+
+    PERFORM PG_NOTIFY('new_join_accs', CAST(SENDER_ID AS TEXT));
 
 		RETURN NEW;
 	END
@@ -128,7 +131,9 @@ CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER
   LANGUAGE plpgsql
   AS $$
   BEGIN
-    SELECT CRYPT(NEW.authpass, GEN_SALT('bf', 10)) INTO NEW.authpass;
+    IF NEW.id <> 1 THEN -- it's pointless to encrypt the 'uplink' password
+      SELECT CRYPT(NEW.authpass, GEN_SALT('bf', 10)) INTO NEW.authpass;
+    END IF;
 
     RETURN NEW;
   END
@@ -148,17 +153,31 @@ CREATE OR REPLACE FUNCTION notify_new_invite() RETURNS TRIGGER
   LANGUAGE plpgsql
   AS $$
   BEGIN
-    PERFORM PG_NOTIFY('new_invites', CAST(NEW.id AS TEXT));
+    PERFORM PG_NOTIFY('new_join_reqs', CAST(NEW.id AS TEXT));
 
     RETURN NEW;
   END
 $$;
 
-CREATE OR REPLACE FUNCTION notify_new_friendship() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION notify_friendship_request() RETURNS TRIGGER
   LANGUAGE plpgsql
   AS $$
   BEGIN
-    PERFORM PG_NOTIFY('new_friendships', CAST(NEW.id AS TEXT));
+    IF NOT NEW.established THEN
+      PERFORM PG_NOTIFY('new_friendship_reqs', CAST(NEW.id AS TEXT));
+    END IF;
+
+    RETURN NEW;
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION notify_friendship_accepted() RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    IF (NOT OLD.established) AND NEW.established THEN
+      PERFORM PG_NOTIFY('new_friendships', CAST(NEW.id AS TEXT));
+    END IF;
 
     RETURN NEW;
   END
@@ -170,9 +189,9 @@ CREATE TRIGGER after_delete_member AFTER DELETE ON members FOR EACH ROW EXECUTE 
 CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE check_membership();
 CREATE TRIGGER after_insert_invite AFTER INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE notify_new_invite();
 CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE check_friendship();
-CREATE TRIGGER after_insert_friendship AFTER INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE notify_new_friendship();
+CREATE TRIGGER after_insert_friendship AFTER INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE notify_friendship_request();
+CREATE TRIGGER after_update_friendship AFTER UPDATE ON friendships FOR EACH ROW EXECUTE PROCEDURE notify_friendship_accepted();
 CREATE TRIGGER before_insert_users BEFORE INSERT ON users FOR EACH ROW EXECUTE PROCEDURE hash_password();
-
 
 CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOLEAN
   LANGUAGE plpgsql
@@ -189,3 +208,5 @@ CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOL
     END IF;
   END
 $$;
+
+INSERT INTO users(name, authpass) VALUES ('uplink', '');

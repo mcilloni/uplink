@@ -57,9 +57,36 @@ func (r *uplinkRoutes) checkSession(ctx context.Context) (int64, bool, error) {
 	return uid, res, nil
 }
 
+func (r *uplinkRoutes) AcceptFriendship(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
+	receiverUID, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, pd.ErrNotAuthenticated
+	}
+
+	sender, err := r.u.getUser(username.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	err = r.u.acceptFriendship(sender.ID, receiverUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.BoolResp{Success: true}, nil
+}
+
 func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
 	if len(username.Name) == 0 {
 		return nil, pd.ErrZeroLenArg
+	}
+
+	if isReservedName(username.Name) {
+		return nil, pd.ErrReservedUser
 	}
 
 	found, err := r.u.existsUser(username.Name)
@@ -72,7 +99,23 @@ func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.B
 }
 
 func (r *uplinkRoutes) Friends(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
-	return nil, nil
+	uid, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, pd.ErrNotAuthenticated
+	}
+
+	frienships, err := r.u.getFriendships(uid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.FriendList{
+		Friends: frienships,
+	}, nil
 }
 
 func (r *uplinkRoutes) Login(_ context.Context, authInfo *pd.AuthInfo) (*pd.SessInfo, error) {
@@ -151,6 +194,24 @@ func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_Notifications
 	}
 }
 
+func (r *uplinkRoutes) PendingFriendships(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
+	senderUID, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, pd.ErrNotAuthenticated
+	}
+
+	pending, err := r.u.getPendingFriendships(senderUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.FriendList{Friends: pending}, nil
+}
+
 func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, error) {
 	_, valid, err := r.checkSession(ctx)
 
@@ -159,4 +220,27 @@ func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, err
 	}
 
 	return &pd.BoolResp{Success: valid}, nil
+}
+
+func (r *uplinkRoutes) RequestFriendship(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
+	senderUID, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, pd.ErrNotAuthenticated
+	}
+
+	receiver, err := r.u.getUser(username.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = r.u.newFriendship(senderUID, receiver.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.BoolResp{Success: true}, nil
 }
