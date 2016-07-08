@@ -12,11 +12,15 @@
 
 package uplink
 
-import pd "github.com/mcilloni/uplink/protodef"
+import (
+	"log"
+
+	pd "github.com/mcilloni/uplink/protodef"
+)
 
 type sink struct {
 	UID  int64
-	Sink chan<- *pd.Notification
+	Sink chan *pd.Notification
 }
 
 type msg struct {
@@ -25,6 +29,8 @@ type msg struct {
 }
 
 type dispatcher struct {
+	l *log.Logger
+
 	bins    map[int64][]chan<- *pd.Notification
 	started bool
 
@@ -33,8 +39,9 @@ type dispatcher struct {
 	removeSinkChan chan *sink
 }
 
-func startDispatcher() *dispatcher {
+func startDispatcher(l *log.Logger) *dispatcher {
 	d := &dispatcher{
+		l:              l,
 		bins:           make(map[int64][]chan<- *pd.Notification),
 		addSinkChan:    make(chan *sink, 100),
 		notifyChan:     make(chan *msg, 1000),
@@ -46,26 +53,36 @@ func startDispatcher() *dispatcher {
 	return d
 }
 
-func (d *dispatcher) addSink(uid int64, sink chan<- *pd.Notification) {
+func (d *dispatcher) addSinkInternal(uid int64, sink chan<- *pd.Notification) {
 	bin, ok := d.bins[uid]
 	if !ok {
 		bin = []chan<- *pd.Notification{}
 	}
 
 	d.bins[uid] = append(bin, sink)
+
+	d.l.Printf("ADDED %v TO USER %d's BIN\n", sink, uid)
+
+	sink <- &pd.Notification{Type: pd.Notification_HANDLER_READY}
 }
 
-func (d *dispatcher) notify(uid int64, notif *pd.Notification) {
+func (d *dispatcher) notifyInternal(uid int64, notif *pd.Notification) {
+	d.l.Printf("NOTIFYING %d WITH %v\n", uid, notif)
+
 	if bin, ok := d.bins[uid]; ok {
 		for _, sink := range bin {
 			go func(sink chan<- *pd.Notification) {
 				sink <- notif
 			}(sink)
 		}
+	} else {
+		d.l.Printf("NO CHANS FOR USER %d\n", uid)
 	}
 }
 
-func (d *dispatcher) removeSink(uid int64, toRemove chan<- *pd.Notification) {
+func (d *dispatcher) removeSinkInternal(uid int64, toRemove chan<- *pd.Notification) {
+	defer close(toRemove)
+
 	if bin, ok := d.bins[uid]; ok {
 		for i, sink := range bin {
 			if sink == toRemove {
@@ -75,6 +92,8 @@ func (d *dispatcher) removeSink(uid int64, toRemove chan<- *pd.Notification) {
 			}
 		}
 	}
+
+	d.l.Printf("DELETED %v FROM USER %d's BIN\n", toRemove, uid)
 }
 
 func (d *dispatcher) start() {
@@ -87,25 +106,28 @@ func (d *dispatcher) start() {
 	for {
 		select {
 		case sink := <-d.addSinkChan:
-			d.addSink(sink.UID, sink.Sink)
+			d.addSinkInternal(sink.UID, sink.Sink)
 
 		case msg := <-d.notifyChan:
-			d.notify(msg.UID, msg.Notification)
+			d.notifyInternal(msg.UID, msg.Notification)
 
 		case sink := <-d.removeSinkChan:
-			d.removeSink(sink.UID, sink.Sink)
+			d.removeSinkInternal(sink.UID, sink.Sink)
 		}
 	}
 }
 
-func (d *dispatcher) AddSink(uid int64, newSink chan<- *pd.Notification) {
+func (d *dispatcher) AddSink(uid int64) chan *pd.Notification {
+	newSink := make(chan *pd.Notification)
 	d.addSinkChan <- &sink{uid, newSink}
+
+	return newSink
 }
 
 func (d *dispatcher) Notify(uid int64, notification *pd.Notification) {
 	d.notifyChan <- &msg{uid, notification}
 }
 
-func (d *dispatcher) RemoveSink(uid int64, oldSink chan<- *pd.Notification) {
+func (d *dispatcher) RemoveSink(uid int64, oldSink chan *pd.Notification) {
 	d.removeSinkChan <- &sink{uid, oldSink}
 }

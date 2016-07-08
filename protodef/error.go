@@ -49,7 +49,7 @@ var (
 	ErrNoUser = grpc.Errorf(codes.NotFound, "ENOUSER: no such user")
 
 	// ErrNoFriendship means that the requested friendship doesn't exist.
-	ErrNoFriendship = grpc.Errorf(codes.NotFound, "ENOFRIENDSHIP: no such user")
+	ErrNoFriendship = grpc.Errorf(codes.NotFound, "ENOFRIENDSHIP: not friend with given user")
 
 	// ErrNoRequest means that the user never received the requested friendship request.
 	ErrNoRequest = grpc.Errorf(codes.NotFound, "ENOREQUEST: no friendship request")

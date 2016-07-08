@@ -21,9 +21,10 @@ service Uplink {
   rpc Login (AuthInfo) returns (SessInfo);
   rpc NewUser (AuthInfo) returns (SessInfo);
   rpc Notifications(Empty) returns (stream Notification);
-  rpc PendingFriendships (Empty) returns (FriendList);
   rpc Ping (Empty) returns (BoolResp);
+  rpc ReceivedRequests (Empty) returns (FriendList);
   rpc RequestFriendship (Username) returns (BoolResp);
+  rpc SentRequests (Empty) returns (FriendList);
 }
 
 message Empty {}
@@ -53,12 +54,15 @@ message Notification {
     FRIENDSHIP_ACC = 2;
     JOIN_REQ = 3;
     JOIN_ACC = 4;
+
+    HANDLER_READY = 5;
   };
 
   Type type = 1;
   string user_name = 2;
   int64 conv_id = 3;
-  string body = 4;
+  string conv_name = 4;
+  string body = 5;
 };
 
 message FriendList {

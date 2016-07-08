@@ -177,39 +177,36 @@ func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_Notifications
 		return pd.ErrNotAuthenticated
 	}
 
-	sink := make(chan *pd.Notification)
-	defer close(sink)
+	r.u.Printf("NEW NOTIFICATIONS HANDLER REQ FROM %d\n", uid)
 
-	r.u.dispatcher.addSink(uid, sink)
-	defer r.u.dispatcher.removeSink(uid, sink)
+	sink := r.u.dispatcher.AddSink(uid)
+	defer r.u.Printf("HALTING NOTIFICATION ROUTINE FOR USER %d\n", uid)
+	defer r.u.dispatcher.RemoveSink(uid, sink)
 
 	for {
-		if err := stream.Send(<-sink); err != nil {
-			if err == io.EOF {
+		select {
+		case notif := <-sink:
+			r.u.Printf("SENDING VIA RPC %v to %d\n", notif, uid)
+
+			if err := stream.Send(notif); err != nil {
+				if err == io.EOF {
+					return nil
+				}
+
+				return err
+			}
+
+		case <-ctx.Done():
+			err := ctx.Err()
+			if err == nil || err == io.EOF {
 				return nil
 			}
+
+			r.u.Println(err)
 
 			return err
 		}
 	}
-}
-
-func (r *uplinkRoutes) PendingFriendships(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
-	senderUID, valid, err := r.checkSession(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if !valid {
-		return nil, pd.ErrNotAuthenticated
-	}
-
-	pending, err := r.u.getPendingFriendships(senderUID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pd.FriendList{Friends: pending}, nil
 }
 
 func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, error) {
@@ -220,6 +217,24 @@ func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, err
 	}
 
 	return &pd.BoolResp{Success: valid}, nil
+}
+
+func (r *uplinkRoutes) ReceivedRequests(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
+	senderUID, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, pd.ErrNotAuthenticated
+	}
+
+	pending, err := r.u.getReceivedRequests(senderUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.FriendList{Friends: pending}, nil
 }
 
 func (r *uplinkRoutes) RequestFriendship(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
@@ -243,4 +258,22 @@ func (r *uplinkRoutes) RequestFriendship(ctx context.Context, username *pd.Usern
 	}
 
 	return &pd.BoolResp{Success: true}, nil
+}
+
+func (r *uplinkRoutes) SentRequests(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
+	senderUID, valid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !valid {
+		return nil, pd.ErrNotAuthenticated
+	}
+
+	pending, err := r.u.getSentRequests(senderUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.FriendList{Friends: pending}, nil
 }

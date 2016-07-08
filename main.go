@@ -20,8 +20,11 @@ import (
 	"github.com/mcilloni/uplink/uplink"
 )
 
-func main() {
+func init() {
 	flag.Parse()
+}
+
+func main() {
 	logger := log.New(os.Stderr, "uplink:", log.LstdFlags)
 
 	up, err := uplink.New(uplink.Config{

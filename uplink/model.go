@@ -144,7 +144,7 @@ func (u *Uplink) getFriendships(user int64) (friendships []string, err error) {
 		(SELECT sender AS friend_id FROM friendships WHERE receiver = ? AND established)
 		UNION
 		(SELECT receiver AS friend_id FROM friendships WHERE sender = ? AND established)
-	)`).Table("user_friends AS uf").Select("name").Joins("JOIN users ON users.id = uf.friend_id").Scan(&friendships))
+	)`, user, user).Table("user_friends AS uf").Select("name").Joins("JOIN users ON users.id = uf.friend_id").Scan(&friendships))
 
 	return
 }
@@ -193,10 +193,18 @@ func (u *Uplink) getMessageReceivers(msg *Message) (receivers []Member, err erro
 	return
 }
 
-// getPendingFriendships returns all the still pending Friendships of the given user.
-func (u *Uplink) getPendingFriendships(user int64) (friendships []string, err error) {
+// getReceivedRequests returns all the still pending Friendship requests the user never responded to.
+func (u *Uplink) getReceivedRequests(user int64) (friendships []string, err error) {
 	friendTable := new(Friendship).TableName()
-	err = u.serverFault(u.db.Table(friendTable).Select("name").Joins("JOIN users ON users.id = "+friendTable+".receiver").Where("sender = ?", user).Scan(&friendships))
+	err = u.serverFault(u.db.Table(friendTable).Select("name").Joins("JOIN users ON users.id = "+friendTable+".sender").Where("receiver = ? AND NOT established", user).Scan(&friendships))
+
+	return
+}
+
+// getSentRequests returns all the still pending Friendship requests the user has sent.
+func (u *Uplink) getSentRequests(user int64) (friendships []string, err error) {
+	friendTable := new(Friendship).TableName()
+	err = u.serverFault(u.db.Table(friendTable).Select("name").Joins("JOIN users ON users.id = "+friendTable+".receiver").Where("sender = ? AND NOT established", user).Scan(&friendships))
 
 	return
 }

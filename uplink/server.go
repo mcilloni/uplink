@@ -34,16 +34,16 @@ type Uplink struct {
 }
 
 func (u *Uplink) startDispatcher() {
-	u.dispatcher = startDispatcher()
+	u.dispatcher = startDispatcher(u.Logger)
 
 	u.db.Listen("new_messages", func(payload ...string) {
 		if len(payload) != 1 {
-			u.Panicln("totally broken payload received by notification listener")
+			panic("totally broken payload received by notification listener")
 		}
 
 		msgID, err := strconv.ParseInt(payload[0], 10, 64)
 		if err != nil {
-			u.Panicln("totally broken payload received by notification listener")
+			panic("totally broken payload received by notification listener")
 		}
 
 		message, err := u.getMessage(msgID)
@@ -76,12 +76,12 @@ func (u *Uplink) startDispatcher() {
 
 	u.db.Listen("new_join_reqs", func(payload ...string) {
 		if len(payload) != 1 {
-			u.Panicln("totally broken payload received by invite_req listener")
+			panic("totally broken payload received by invite_req listener")
 		}
 
 		inviteID, err := strconv.ParseInt(payload[0], 10, 64)
 		if err != nil {
-			u.Panicln("totally broken payload received by invite_req listener")
+			panic("totally broken payload received by invite_req listener")
 		}
 
 		u.Println(payload[0])
@@ -108,18 +108,18 @@ func (u *Uplink) startDispatcher() {
 			Type:     pd.Notification_JOIN_REQ,
 			UserName: senderName,
 			ConvId:   conversation.ID,
-			Body:     conversation.Name,
+			ConvName: conversation.Name,
 		})
 	})
 
 	u.db.Listen("new_join_accs", func(payload ...string) {
 		if len(payload) != 1 {
-			u.Panicln("totally broken payload received by invite_acc listener")
+			panic("totally broken payload received by invite_acc listener")
 		}
 
 		inviteID, err := strconv.ParseInt(payload[0], 10, 64)
 		if err != nil {
-			u.Panicln("totally broken payload received by invite_acc listener")
+			panic("totally broken payload received by invite_acc listener")
 		}
 
 		invite, err := u.getInvite(inviteID)
@@ -150,7 +150,7 @@ func (u *Uplink) startDispatcher() {
 			Type:     pd.Notification_JOIN_ACC,
 			UserName: receiverName,
 			ConvId:   conversation.ID,
-			Body:     conversation.Name,
+			ConvName: conversation.Name,
 		}
 
 		for _, member := range memberships {
@@ -167,6 +167,8 @@ func (u *Uplink) startDispatcher() {
 		if err != nil {
 			u.Panicln("totally broken payload received by friend_req listener")
 		}
+
+		u.Printf("NEW FRIENDSHIP_REQ %d\n", friendID)
 
 		friendship, err := u.getFriendship(friendID)
 		if err != nil {
@@ -185,10 +187,14 @@ func (u *Uplink) startDispatcher() {
 			return
 		}
 
-		u.dispatcher.Notify(friendship.Receiver, &pd.Notification{
+		notification := &pd.Notification{
 			Type:     pd.Notification_FRIENDSHIP_REQ,
 			UserName: senderName,
-		})
+		}
+
+		u.Printf("SENDING NOTIFICATION %v FROM %d TO USER %d\n", notification, friendship.Sender, friendship.Receiver)
+
+		u.dispatcher.Notify(friendship.Receiver, notification)
 	})
 
 	u.db.Listen("new_friendships", func(payload ...string) {
