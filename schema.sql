@@ -15,7 +15,7 @@ ALTER TABLE users OWNER TO uplink;
 
 CREATE TABLE conversations (
   id BIGSERIAL NOT NULL PRIMARY KEY,
-  name CHARACTER VARYING(200),
+  name CHARACTER VARYING(200) NOT NULL DEFAULT '',
   creation_time TIMESTAMP WITHOUT TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
 );
 ALTER TABLE conversations OWNER TO uplink;
@@ -69,13 +69,74 @@ CREATE TABLE sessions (
 ALTER TABLE sessions OWNER TO uplink;
 
 
+CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOLEAN
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    PERFORM(SELECT 1 FROM sessions S WHERE S.session_id = _sessid AND S.uid = _uid AND S.acc_time > TIMEZONE('utc'::TEXT, (NOW() - (30 * interval '1 day'))));
+
+    IF FOUND THEN
+      UPDATE sessions SET acc_time = TIMEZONE('utc'::TEXT, NOW());
+
+      RETURN TRUE;
+    ELSE
+      RETURN FALSE;
+    END IF;
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION is_special_user(_uid BIGINT, OUT ret BOOLEAN) RETURNS BOOLEAN
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    SELECT _uid = 1 INTO ret;
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION is_member(_uid BIGINT, _convid BIGINT, OUT ret BOOLEAN) RETURNS BOOLEAN
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    SELECT EXISTS(SELECT 1 FROM members WHERE conversation = _convid AND uid = _uid) INTO ret;
+  END
+$$;
+
+CREATE OR REPLACE FUNCTION are_friends(_uid1 BIGINT, _uid2 BIGINT, out ret BOOLEAN) RETURNS BOOLEAN
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    SELECT EXISTS(SELECT 1 FROM friendships WHERE (sender = _uid1 AND receiver = _uid2) OR (sender = _uid2 AND receiver = _uid1)) INTO ret;
+  END
+$$;
+
+
 CREATE OR REPLACE FUNCTION check_membership() RETURNS TRIGGER
 	LANGUAGE plpgsql
 	AS $$
 	BEGIN
-		IF NOT EXISTS(SELECT 1 FROM members WHERE conversation = NEW.conversation AND uid = NEW.sender)  AND NEW.sender <> 1 THEN -- 'uplink' has uid = 1 and can do everything
+		IF NOT IS_MEMBER(NEW.sender) AND NOT IS_SPECIAL_USER(NEW.sender) THEN -- 'uplink' has uid = 1 and can do everything
 			RAISE EXCEPTION 'NOT_MEMBER';
 		END IF;
+
+		RETURN NEW;
+	END
+$$;
+
+CREATE OR REPLACE FUNCTION check_before_invite() RETURNS TRIGGER
+	LANGUAGE plpgsql
+	AS $$
+	BEGIN
+		IF NOT IS_MEMBER(NEW.sender, NEW.conversation) THEN
+			RAISE EXCEPTION 'NOT_MEMBER';
+		END IF;
+
+    IF IS_MEMBER(NEW.receiver, NEW.conversation) THEN
+      RAISE EXCEPTION 'ALREADY_MEMBER';
+    END IF;
+
+    IF NOT ARE_FRIENDS(NEW.sender, NEW.receiver) THEN
+      RAISE EXCEPTION 'NOT_FRIENDS';
+    END IF;
 
 		RETURN NEW;
 	END
@@ -186,27 +247,11 @@ $$;
 CREATE TRIGGER before_insert_message BEFORE INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE check_membership();
 CREATE TRIGGER after_insert_message AFTER INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE notify_new_message();
 CREATE TRIGGER after_delete_member AFTER DELETE ON members FOR EACH ROW EXECUTE PROCEDURE remove_empty_conv();
-CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE check_membership();
+CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE check_before_invite();
 CREATE TRIGGER after_insert_invite AFTER INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE notify_new_invite();
 CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE check_friendship();
 CREATE TRIGGER after_insert_friendship AFTER INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE notify_friendship_request();
 CREATE TRIGGER after_update_friendship AFTER UPDATE ON friendships FOR EACH ROW EXECUTE PROCEDURE notify_friendship_accepted();
 CREATE TRIGGER before_insert_users BEFORE INSERT ON users FOR EACH ROW EXECUTE PROCEDURE hash_password();
-
-CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOLEAN
-  LANGUAGE plpgsql
-  AS $$
-  BEGIN
-    PERFORM(SELECT 1 FROM sessions S WHERE S.session_id = _sessid AND S.uid = _uid AND S.acc_time > TIMEZONE('utc'::TEXT, (NOW() - (30 * interval '1 day'))));
-
-    IF FOUND THEN
-      UPDATE sessions SET acc_time = TIMEZONE('utc'::TEXT, NOW());
-
-      RETURN TRUE;
-    ELSE
-      RETURN FALSE;
-    END IF;
-  END
-$$;
 
 INSERT INTO users(name, authpass) VALUES ('uplink', '');

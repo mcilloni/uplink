@@ -110,6 +110,17 @@ func (u *Uplink) getConversation(convID int64) (conv *Conversation, err error) {
 	return
 }
 
+func (u *Uplink) getConversations(UID int64) (convs []Conversation, err error) {
+	conversations := new(Conversation).TableName()
+	members := new(Member).TableName()
+
+	err = u.serverFault(u.db.Model(Conversation{}).Joins(
+		fmt.Sprintf("JOIN %s ON %s.id = %s.conversation", members, conversations, members),
+	).Where(fmt.Sprintf("%s.uid = ?", members), UID).Scan(&convs))
+
+	return
+}
+
 func (u *Uplink) getFriendship(friendID int64) (friendship *Friendship, err error) {
 	friendship = new(Friendship)
 
@@ -257,28 +268,64 @@ func (u *Uplink) getUsersOf(conv int64) (users []User, err error) {
 	return
 }
 
-func (u *Uplink) initConversation() (conv *Conversation, err error) {
-	conv = new(Conversation)
+func (u *Uplink) newConversation(creatorUID int64, name string) (conv *Conversation, err error) {
+	conv = &Conversation{Name: name}
 
-	err = u.serverFault(u.db.Create(conv))
+	trans := u.db.Begin()
 
-	return
+	err = u.serverFault(trans.Create(conv))
+	if err != nil {
+		trans.Rollback()
+
+		return
+	}
+
+	err = u.serverFault(trans.Create(&Member{UID: creatorUID, Conversation: conv.ID}))
+	if err != nil {
+		trans.Rollback()
+
+		return
+	}
+
+	return conv, u.serverFault(trans.Commit())
 }
 
-func (u *Uplink) invite(receiver, sender, convID int64) (invite *Invite, err error) {
+func (u *Uplink) invite(sender, receiver, convID int64) (*Invite, error) {
 	if isReservedID(receiver) || isReservedID(sender) {
 		return nil, pd.ErrReservedUser
 	}
 
-	invite = &Invite{
+	if sender == receiver {
+		return nil, pd.ErrSelfInvite
+	}
+
+	invite := &Invite{
 		Conversation: convID,
 		Sender:       sender,
 		Receiver:     receiver,
 	}
 
-	err = u.serverFault(u.db.Model(Invite{}).Create(invite))
+	err := u.db.Model(Invite{}).Create(invite)
+	if err != nil {
+		switch {
+		case strings.Contains(err.Error(), "UNIQUE_INVITE"):
+			return nil, pd.ErrAlreadyInvited
 
-	return
+		case strings.Contains(err.Error(), "NOT_MEMBER"):
+			return nil, pd.ErrNotMember
+
+		case strings.Contains(err.Error(), "ALREADY_MEMBER"):
+			return nil, pd.ErrAlreadyMember
+
+		case strings.Contains(err.Error(), "NOT_FRIENDS"):
+			return nil, pd.ErrNotFriends
+
+		default:
+			return nil, u.serverFault(err)
+		}
+	}
+
+	return invite, nil
 }
 
 func (u *Uplink) loginUser(name, pass string) (user *User, err error) {

@@ -39,6 +39,9 @@ var (
 	// ErrEmptyConv means that a given conversation is empty.
 	ErrEmptyConv = grpc.Errorf(codes.NotFound, "EEMPTYCONV: empty conversation")
 
+	// ErrAlreadyMember means that the user can't be invited to the given conversation because it is already a member of it.
+	ErrAlreadyMember = grpc.Errorf(codes.AlreadyExists, "EALREADYMEMBER: user already member of the conversation")
+
 	// ErrNameAlreadyTaken means that the wanted username is already taken.
 	ErrNameAlreadyTaken = grpc.Errorf(codes.AlreadyExists, "ENAMEALREADYTAKEN: name already taken")
 
@@ -59,6 +62,9 @@ var (
 
 	// ErrNotMember means that the user is not member of a given conversation
 	ErrNotMember = grpc.Errorf(codes.PermissionDenied, "ENOTMEMBER: user not member of conversation")
+
+	// ErrNotFriends means that the user is not friend with the given user.
+	ErrNotFriends = grpc.Errorf(codes.PermissionDenied, "ENOTFRIENDS: user is not a friend")
 
 	// ErrSelfInvite means that the user has tried to invite itself into a
 	// conversation.

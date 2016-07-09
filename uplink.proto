@@ -15,15 +15,20 @@ option java_package = "com.github.mcilloni.uplink";
 option java_outer_classname = "UplinkProto";
 
 service Uplink {
-  rpc AcceptFriendship (Username) returns (BoolResp);
-  rpc Exists (Username) returns (BoolResp);
+  rpc AcceptFriendship (Name) returns (BoolResp);
+  rpc AcceptInvite (ID) returns (BoolResp);
+  rpc Conversations (Empty) returns (ConversationList);
+  rpc Exists (Name) returns (BoolResp);
   rpc Friends (Empty) returns (FriendList);
+  rpc Invites (Empty) returns (ConversationList);
   rpc Login (AuthInfo) returns (SessInfo);
+  rpc NewConversation (Name) returns (ID);
   rpc NewUser (AuthInfo) returns (SessInfo);
   rpc Notifications(Empty) returns (stream Notification);
   rpc Ping (Empty) returns (BoolResp);
   rpc ReceivedRequests (Empty) returns (FriendList);
-  rpc RequestFriendship (Username) returns (BoolResp);
+  rpc RequestFriendship (Name) returns (BoolResp);
+  rpc SendInvite (Invite) returns (BoolResp);
   rpc SentRequests (Empty) returns (FriendList);
 }
 
@@ -33,8 +38,12 @@ message BoolResp {
   bool success = 1;
 }
 
-message Username {
+message Name {
   string name = 1;
+}
+
+message ID {
+  int64 id = 1;
 }
 
 message AuthInfo {
@@ -67,4 +76,18 @@ message Notification {
 
 message FriendList {
   repeated string friends = 1;
+};
+
+message ConversationList {
+  repeated Conversation convs = 1;
+};
+
+message Conversation {
+  int64 id = 1;
+  string name = 2;
+};
+
+message Invite {
+  string who = 1;
+  int64 conv_id = 2;
 };

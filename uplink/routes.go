@@ -30,41 +30,41 @@ func newRoute(u *Uplink) *uplinkRoutes {
 	return &uplinkRoutes{u: u}
 }
 
-func (r *uplinkRoutes) checkSession(ctx context.Context) (int64, bool, error) {
+func (r *uplinkRoutes) checkSession(ctx context.Context) (int64, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
-		return -1, false, pd.ErrNoMetadata
+		return -1, pd.ErrNoMetadata
 	}
 
 	uidStrSlice, okUID := md["uid"]
 	sessidSlice, okSessid := md["sessid"]
 
 	if !okUID || !okSessid || len(uidStrSlice) != 1 || len(sessidSlice) != 1 {
-		return -1, false, pd.ErrBrokeProto
+		return -1, pd.ErrBrokeProto
 	}
 
 	sessid := sessidSlice[0]
 	uid, err := strconv.ParseInt(uidStrSlice[0], 10, 64)
 	if err != nil || uid < 1 {
-		return -1, false, pd.ErrBrokeProto
+		return -1, pd.ErrBrokeProto
 	}
 
 	res, err := r.u.checkSession(sessid, uid)
 	if err != nil {
-		return -1, false, err
+		return -1, err
 	}
 
-	return uid, res, nil
+	if !res {
+		return -1, pd.ErrNotAuthenticated
+	}
+
+	return uid, nil
 }
 
-func (r *uplinkRoutes) AcceptFriendship(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
-	receiverUID, valid, err := r.checkSession(ctx)
+func (r *uplinkRoutes) AcceptFriendship(ctx context.Context, username *pd.Name) (*pd.BoolResp, error) {
+	receiverUID, err := r.checkSession(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if !valid {
-		return nil, pd.ErrNotAuthenticated
 	}
 
 	sender, err := r.u.getUser(username.Name)
@@ -80,7 +80,30 @@ func (r *uplinkRoutes) AcceptFriendship(ctx context.Context, username *pd.Userna
 	return &pd.BoolResp{Success: true}, nil
 }
 
-func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
+func (r *uplinkRoutes) Conversations(ctx context.Context, _ *pd.Empty) (*pd.ConversationList, error) {
+	uid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	convs, err := r.u.getConversations(uid)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &pd.ConversationList{Convs: make([]*pd.Conversation, len(convs))}
+
+	for i, conv := range convs {
+		ret.Convs[i] = &pd.Conversation{
+			Id:   conv.ID,
+			Name: conv.Name,
+		}
+	}
+
+	return ret, nil
+}
+
+func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Name) (*pd.BoolResp, error) {
 	if len(username.Name) == 0 {
 		return nil, pd.ErrZeroLenArg
 	}
@@ -99,13 +122,9 @@ func (r *uplinkRoutes) Exists(ctx context.Context, username *pd.Username) (*pd.B
 }
 
 func (r *uplinkRoutes) Friends(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
-	uid, valid, err := r.checkSession(ctx)
+	uid, err := r.checkSession(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if !valid {
-		return nil, pd.ErrNotAuthenticated
 	}
 
 	frienships, err := r.u.getFriendships(uid)
@@ -143,6 +162,20 @@ func (r *uplinkRoutes) Login(_ context.Context, authInfo *pd.AuthInfo) (*pd.Sess
 	}, nil
 }
 
+func (r *uplinkRoutes) NewConversation(ctx context.Context, convName *pd.Name) (*pd.ID, error) {
+	uid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	conv, err := r.u.newConversation(uid, convName.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.ID{Id: conv.ID}, nil
+}
+
 func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.AuthInfo) (*pd.SessInfo, error) {
 	name, pass := ureq.Name, ureq.Pass
 
@@ -168,13 +201,9 @@ func (r *uplinkRoutes) NewUser(_ context.Context, ureq *pd.AuthInfo) (*pd.SessIn
 
 func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_NotificationsServer) error {
 	ctx := stream.Context()
-	uid, valid, err := r.checkSession(ctx)
+	uid, err := r.checkSession(ctx)
 	if err != nil {
 		return err
-	}
-
-	if !valid {
-		return pd.ErrNotAuthenticated
 	}
 
 	r.u.Printf("NEW NOTIFICATIONS HANDLER REQ FROM %d\n", uid)
@@ -210,23 +239,19 @@ func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_Notifications
 }
 
 func (r *uplinkRoutes) Ping(ctx context.Context, _ *pd.Empty) (*pd.BoolResp, error) {
-	_, valid, err := r.checkSession(ctx)
+	_, err := r.checkSession(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &pd.BoolResp{Success: valid}, nil
+	return &pd.BoolResp{Success: true}, nil
 }
 
 func (r *uplinkRoutes) ReceivedRequests(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
-	senderUID, valid, err := r.checkSession(ctx)
+	senderUID, err := r.checkSession(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if !valid {
-		return nil, pd.ErrNotAuthenticated
 	}
 
 	pending, err := r.u.getReceivedRequests(senderUID)
@@ -237,14 +262,10 @@ func (r *uplinkRoutes) ReceivedRequests(ctx context.Context, _ *pd.Empty) (*pd.F
 	return &pd.FriendList{Friends: pending}, nil
 }
 
-func (r *uplinkRoutes) RequestFriendship(ctx context.Context, username *pd.Username) (*pd.BoolResp, error) {
-	senderUID, valid, err := r.checkSession(ctx)
+func (r *uplinkRoutes) RequestFriendship(ctx context.Context, username *pd.Name) (*pd.BoolResp, error) {
+	senderUID, err := r.checkSession(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if !valid {
-		return nil, pd.ErrNotAuthenticated
 	}
 
 	receiver, err := r.u.getUser(username.Name)
@@ -260,14 +281,29 @@ func (r *uplinkRoutes) RequestFriendship(ctx context.Context, username *pd.Usern
 	return &pd.BoolResp{Success: true}, nil
 }
 
-func (r *uplinkRoutes) SentRequests(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
-	senderUID, valid, err := r.checkSession(ctx)
+func (r *uplinkRoutes) SendInvite(ctx context.Context, invReq *pd.Invite) (*pd.BoolResp, error) {
+	senderUID, err := r.checkSession(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if !valid {
-		return nil, pd.ErrNotAuthenticated
+	receiver, err := r.u.getUser(invReq.Who)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = r.u.invite(senderUID, receiver.ID, invReq.ConvId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.BoolResp{Success: true}, nil
+}
+
+func (r *uplinkRoutes) SentRequests(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {
+	senderUID, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	pending, err := r.u.getSentRequests(senderUID)

@@ -11,11 +11,15 @@ It is generated from these files:
 It has these top-level messages:
 	Empty
 	BoolResp
-	Username
+	Name
+	ID
 	AuthInfo
 	SessInfo
 	Notification
 	FriendList
+	ConversationList
+	Conversation
+	Invite
 */
 package protodef
 
@@ -70,7 +74,7 @@ var Notification_Type_value = map[string]int32{
 func (x Notification_Type) String() string {
 	return proto.EnumName(Notification_Type_name, int32(x))
 }
-func (Notification_Type) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{5, 0} }
+func (Notification_Type) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{6, 0} }
 
 type Empty struct {
 }
@@ -89,14 +93,23 @@ func (m *BoolResp) String() string            { return proto.CompactTextString(m
 func (*BoolResp) ProtoMessage()               {}
 func (*BoolResp) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
-type Username struct {
+type Name struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 }
 
-func (m *Username) Reset()                    { *m = Username{} }
-func (m *Username) String() string            { return proto.CompactTextString(m) }
-func (*Username) ProtoMessage()               {}
-func (*Username) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (m *Name) Reset()                    { *m = Name{} }
+func (m *Name) String() string            { return proto.CompactTextString(m) }
+func (*Name) ProtoMessage()               {}
+func (*Name) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+
+type ID struct {
+	Id int64 `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+}
+
+func (m *ID) Reset()                    { *m = ID{} }
+func (m *ID) String() string            { return proto.CompactTextString(m) }
+func (*ID) ProtoMessage()               {}
+func (*ID) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 type AuthInfo struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
@@ -106,7 +119,7 @@ type AuthInfo struct {
 func (m *AuthInfo) Reset()                    { *m = AuthInfo{} }
 func (m *AuthInfo) String() string            { return proto.CompactTextString(m) }
 func (*AuthInfo) ProtoMessage()               {}
-func (*AuthInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*AuthInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 type SessInfo struct {
 	Uid       int64  `protobuf:"varint,1,opt,name=uid" json:"uid,omitempty"`
@@ -116,7 +129,7 @@ type SessInfo struct {
 func (m *SessInfo) Reset()                    { *m = SessInfo{} }
 func (m *SessInfo) String() string            { return proto.CompactTextString(m) }
 func (*SessInfo) ProtoMessage()               {}
-func (*SessInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*SessInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 type Notification struct {
 	Type     Notification_Type `protobuf:"varint,1,opt,name=type,enum=protodef.Notification_Type" json:"type,omitempty"`
@@ -129,7 +142,7 @@ type Notification struct {
 func (m *Notification) Reset()                    { *m = Notification{} }
 func (m *Notification) String() string            { return proto.CompactTextString(m) }
 func (*Notification) ProtoMessage()               {}
-func (*Notification) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*Notification) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 type FriendList struct {
 	Friends []string `protobuf:"bytes,1,rep,name=friends" json:"friends,omitempty"`
@@ -138,16 +151,56 @@ type FriendList struct {
 func (m *FriendList) Reset()                    { *m = FriendList{} }
 func (m *FriendList) String() string            { return proto.CompactTextString(m) }
 func (*FriendList) ProtoMessage()               {}
-func (*FriendList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*FriendList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+
+type ConversationList struct {
+	Convs []*Conversation `protobuf:"bytes,1,rep,name=convs" json:"convs,omitempty"`
+}
+
+func (m *ConversationList) Reset()                    { *m = ConversationList{} }
+func (m *ConversationList) String() string            { return proto.CompactTextString(m) }
+func (*ConversationList) ProtoMessage()               {}
+func (*ConversationList) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+
+func (m *ConversationList) GetConvs() []*Conversation {
+	if m != nil {
+		return m.Convs
+	}
+	return nil
+}
+
+type Conversation struct {
+	Id   int64  `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	Name string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+}
+
+func (m *Conversation) Reset()                    { *m = Conversation{} }
+func (m *Conversation) String() string            { return proto.CompactTextString(m) }
+func (*Conversation) ProtoMessage()               {}
+func (*Conversation) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+
+type Invite struct {
+	Who    string `protobuf:"bytes,1,opt,name=who" json:"who,omitempty"`
+	ConvId int64  `protobuf:"varint,2,opt,name=conv_id,json=convId" json:"conv_id,omitempty"`
+}
+
+func (m *Invite) Reset()                    { *m = Invite{} }
+func (m *Invite) String() string            { return proto.CompactTextString(m) }
+func (*Invite) ProtoMessage()               {}
+func (*Invite) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
 
 func init() {
 	proto.RegisterType((*Empty)(nil), "protodef.Empty")
 	proto.RegisterType((*BoolResp)(nil), "protodef.BoolResp")
-	proto.RegisterType((*Username)(nil), "protodef.Username")
+	proto.RegisterType((*Name)(nil), "protodef.Name")
+	proto.RegisterType((*ID)(nil), "protodef.ID")
 	proto.RegisterType((*AuthInfo)(nil), "protodef.AuthInfo")
 	proto.RegisterType((*SessInfo)(nil), "protodef.SessInfo")
 	proto.RegisterType((*Notification)(nil), "protodef.Notification")
 	proto.RegisterType((*FriendList)(nil), "protodef.FriendList")
+	proto.RegisterType((*ConversationList)(nil), "protodef.ConversationList")
+	proto.RegisterType((*Conversation)(nil), "protodef.Conversation")
+	proto.RegisterType((*Invite)(nil), "protodef.Invite")
 	proto.RegisterEnum("protodef.Notification_Type", Notification_Type_name, Notification_Type_value)
 }
 
@@ -162,15 +215,20 @@ const _ = grpc.SupportPackageIsVersion3
 // Client API for Uplink service
 
 type UplinkClient interface {
-	AcceptFriendship(ctx context.Context, in *Username, opts ...grpc.CallOption) (*BoolResp, error)
-	Exists(ctx context.Context, in *Username, opts ...grpc.CallOption) (*BoolResp, error)
+	AcceptFriendship(ctx context.Context, in *Name, opts ...grpc.CallOption) (*BoolResp, error)
+	AcceptInvite(ctx context.Context, in *ID, opts ...grpc.CallOption) (*BoolResp, error)
+	Conversations(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConversationList, error)
+	Exists(ctx context.Context, in *Name, opts ...grpc.CallOption) (*BoolResp, error)
 	Friends(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*FriendList, error)
+	Invites(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConversationList, error)
 	Login(ctx context.Context, in *AuthInfo, opts ...grpc.CallOption) (*SessInfo, error)
+	NewConversation(ctx context.Context, in *Name, opts ...grpc.CallOption) (*ID, error)
 	NewUser(ctx context.Context, in *AuthInfo, opts ...grpc.CallOption) (*SessInfo, error)
 	Notifications(ctx context.Context, in *Empty, opts ...grpc.CallOption) (Uplink_NotificationsClient, error)
 	Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BoolResp, error)
 	ReceivedRequests(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*FriendList, error)
-	RequestFriendship(ctx context.Context, in *Username, opts ...grpc.CallOption) (*BoolResp, error)
+	RequestFriendship(ctx context.Context, in *Name, opts ...grpc.CallOption) (*BoolResp, error)
+	SendInvite(ctx context.Context, in *Invite, opts ...grpc.CallOption) (*BoolResp, error)
 	SentRequests(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*FriendList, error)
 }
 
@@ -182,7 +240,7 @@ func NewUplinkClient(cc *grpc.ClientConn) UplinkClient {
 	return &uplinkClient{cc}
 }
 
-func (c *uplinkClient) AcceptFriendship(ctx context.Context, in *Username, opts ...grpc.CallOption) (*BoolResp, error) {
+func (c *uplinkClient) AcceptFriendship(ctx context.Context, in *Name, opts ...grpc.CallOption) (*BoolResp, error) {
 	out := new(BoolResp)
 	err := grpc.Invoke(ctx, "/protodef.Uplink/AcceptFriendship", in, out, c.cc, opts...)
 	if err != nil {
@@ -191,7 +249,25 @@ func (c *uplinkClient) AcceptFriendship(ctx context.Context, in *Username, opts 
 	return out, nil
 }
 
-func (c *uplinkClient) Exists(ctx context.Context, in *Username, opts ...grpc.CallOption) (*BoolResp, error) {
+func (c *uplinkClient) AcceptInvite(ctx context.Context, in *ID, opts ...grpc.CallOption) (*BoolResp, error) {
+	out := new(BoolResp)
+	err := grpc.Invoke(ctx, "/protodef.Uplink/AcceptInvite", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *uplinkClient) Conversations(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConversationList, error) {
+	out := new(ConversationList)
+	err := grpc.Invoke(ctx, "/protodef.Uplink/Conversations", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *uplinkClient) Exists(ctx context.Context, in *Name, opts ...grpc.CallOption) (*BoolResp, error) {
 	out := new(BoolResp)
 	err := grpc.Invoke(ctx, "/protodef.Uplink/Exists", in, out, c.cc, opts...)
 	if err != nil {
@@ -209,9 +285,27 @@ func (c *uplinkClient) Friends(ctx context.Context, in *Empty, opts ...grpc.Call
 	return out, nil
 }
 
+func (c *uplinkClient) Invites(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ConversationList, error) {
+	out := new(ConversationList)
+	err := grpc.Invoke(ctx, "/protodef.Uplink/Invites", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *uplinkClient) Login(ctx context.Context, in *AuthInfo, opts ...grpc.CallOption) (*SessInfo, error) {
 	out := new(SessInfo)
 	err := grpc.Invoke(ctx, "/protodef.Uplink/Login", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *uplinkClient) NewConversation(ctx context.Context, in *Name, opts ...grpc.CallOption) (*ID, error) {
+	out := new(ID)
+	err := grpc.Invoke(ctx, "/protodef.Uplink/NewConversation", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -277,9 +371,18 @@ func (c *uplinkClient) ReceivedRequests(ctx context.Context, in *Empty, opts ...
 	return out, nil
 }
 
-func (c *uplinkClient) RequestFriendship(ctx context.Context, in *Username, opts ...grpc.CallOption) (*BoolResp, error) {
+func (c *uplinkClient) RequestFriendship(ctx context.Context, in *Name, opts ...grpc.CallOption) (*BoolResp, error) {
 	out := new(BoolResp)
 	err := grpc.Invoke(ctx, "/protodef.Uplink/RequestFriendship", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *uplinkClient) SendInvite(ctx context.Context, in *Invite, opts ...grpc.CallOption) (*BoolResp, error) {
+	out := new(BoolResp)
+	err := grpc.Invoke(ctx, "/protodef.Uplink/SendInvite", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -298,15 +401,20 @@ func (c *uplinkClient) SentRequests(ctx context.Context, in *Empty, opts ...grpc
 // Server API for Uplink service
 
 type UplinkServer interface {
-	AcceptFriendship(context.Context, *Username) (*BoolResp, error)
-	Exists(context.Context, *Username) (*BoolResp, error)
+	AcceptFriendship(context.Context, *Name) (*BoolResp, error)
+	AcceptInvite(context.Context, *ID) (*BoolResp, error)
+	Conversations(context.Context, *Empty) (*ConversationList, error)
+	Exists(context.Context, *Name) (*BoolResp, error)
 	Friends(context.Context, *Empty) (*FriendList, error)
+	Invites(context.Context, *Empty) (*ConversationList, error)
 	Login(context.Context, *AuthInfo) (*SessInfo, error)
+	NewConversation(context.Context, *Name) (*ID, error)
 	NewUser(context.Context, *AuthInfo) (*SessInfo, error)
 	Notifications(*Empty, Uplink_NotificationsServer) error
 	Ping(context.Context, *Empty) (*BoolResp, error)
 	ReceivedRequests(context.Context, *Empty) (*FriendList, error)
-	RequestFriendship(context.Context, *Username) (*BoolResp, error)
+	RequestFriendship(context.Context, *Name) (*BoolResp, error)
+	SendInvite(context.Context, *Invite) (*BoolResp, error)
 	SentRequests(context.Context, *Empty) (*FriendList, error)
 }
 
@@ -315,7 +423,7 @@ func RegisterUplinkServer(s *grpc.Server, srv UplinkServer) {
 }
 
 func _Uplink_AcceptFriendship_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Username)
+	in := new(Name)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -327,13 +435,49 @@ func _Uplink_AcceptFriendship_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: "/protodef.Uplink/AcceptFriendship",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UplinkServer).AcceptFriendship(ctx, req.(*Username))
+		return srv.(UplinkServer).AcceptFriendship(ctx, req.(*Name))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Uplink_AcceptInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ID)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UplinkServer).AcceptInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protodef.Uplink/AcceptInvite",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UplinkServer).AcceptInvite(ctx, req.(*ID))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Uplink_Conversations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UplinkServer).Conversations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protodef.Uplink/Conversations",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UplinkServer).Conversations(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Uplink_Exists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Username)
+	in := new(Name)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -345,7 +489,7 @@ func _Uplink_Exists_Handler(srv interface{}, ctx context.Context, dec func(inter
 		FullMethod: "/protodef.Uplink/Exists",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UplinkServer).Exists(ctx, req.(*Username))
+		return srv.(UplinkServer).Exists(ctx, req.(*Name))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -368,6 +512,24 @@ func _Uplink_Friends_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Uplink_Invites_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UplinkServer).Invites(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protodef.Uplink/Invites",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UplinkServer).Invites(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Uplink_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AuthInfo)
 	if err := dec(in); err != nil {
@@ -382,6 +544,24 @@ func _Uplink_Login_Handler(srv interface{}, ctx context.Context, dec func(interf
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UplinkServer).Login(ctx, req.(*AuthInfo))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Uplink_NewConversation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Name)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UplinkServer).NewConversation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protodef.Uplink/NewConversation",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UplinkServer).NewConversation(ctx, req.(*Name))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -462,7 +642,7 @@ func _Uplink_ReceivedRequests_Handler(srv interface{}, ctx context.Context, dec 
 }
 
 func _Uplink_RequestFriendship_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Username)
+	in := new(Name)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -474,7 +654,25 @@ func _Uplink_RequestFriendship_Handler(srv interface{}, ctx context.Context, dec
 		FullMethod: "/protodef.Uplink/RequestFriendship",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UplinkServer).RequestFriendship(ctx, req.(*Username))
+		return srv.(UplinkServer).RequestFriendship(ctx, req.(*Name))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Uplink_SendInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Invite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UplinkServer).SendInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protodef.Uplink/SendInvite",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UplinkServer).SendInvite(ctx, req.(*Invite))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -506,6 +704,14 @@ var _Uplink_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Uplink_AcceptFriendship_Handler,
 		},
 		{
+			MethodName: "AcceptInvite",
+			Handler:    _Uplink_AcceptInvite_Handler,
+		},
+		{
+			MethodName: "Conversations",
+			Handler:    _Uplink_Conversations_Handler,
+		},
+		{
 			MethodName: "Exists",
 			Handler:    _Uplink_Exists_Handler,
 		},
@@ -514,8 +720,16 @@ var _Uplink_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Uplink_Friends_Handler,
 		},
 		{
+			MethodName: "Invites",
+			Handler:    _Uplink_Invites_Handler,
+		},
+		{
 			MethodName: "Login",
 			Handler:    _Uplink_Login_Handler,
+		},
+		{
+			MethodName: "NewConversation",
+			Handler:    _Uplink_NewConversation_Handler,
 		},
 		{
 			MethodName: "NewUser",
@@ -532,6 +746,10 @@ var _Uplink_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestFriendship",
 			Handler:    _Uplink_RequestFriendship_Handler,
+		},
+		{
+			MethodName: "SendInvite",
+			Handler:    _Uplink_SendInvite_Handler,
 		},
 		{
 			MethodName: "SentRequests",
@@ -551,39 +769,47 @@ var _Uplink_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("uplink.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 538 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x9c, 0x54, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0x25, 0x89, 0x13, 0x3b, 0xd3, 0xb4, 0xb8, 0x2b, 0x04, 0x51, 0x2a, 0x10, 0xb2, 0x10, 0x02,
-	0x21, 0xb9, 0x25, 0x88, 0x03, 0xed, 0xc9, 0x69, 0x5c, 0x6a, 0x14, 0x4c, 0x70, 0xe8, 0x81, 0x53,
-	0x94, 0xd8, 0x9b, 0x64, 0x21, 0xd9, 0x35, 0xf1, 0xba, 0x90, 0xdf, 0xe0, 0x1b, 0xf8, 0x50, 0x76,
-	0xd7, 0x71, 0x62, 0x41, 0x0e, 0x6d, 0x4f, 0xde, 0x79, 0x33, 0x6f, 0xdf, 0xcc, 0xce, 0x93, 0xa1,
-	0x91, 0xc6, 0x73, 0x42, 0xbf, 0xdb, 0xf1, 0x92, 0x71, 0x86, 0x0c, 0xf5, 0x89, 0xf0, 0xc4, 0xd2,
-	0xa1, 0xea, 0x2e, 0x62, 0xbe, 0xb2, 0x9e, 0x81, 0xd1, 0x61, 0x6c, 0x1e, 0xe0, 0x24, 0x46, 0x4d,
-	0xd0, 0x93, 0x34, 0x0c, 0x71, 0x92, 0x34, 0x4b, 0x4f, 0x4b, 0x2f, 0x8c, 0x20, 0x0f, 0xad, 0x27,
-	0x60, 0x5c, 0x25, 0x78, 0x49, 0x47, 0x0b, 0x8c, 0x10, 0x68, 0xf2, 0xab, 0x4a, 0xea, 0x81, 0x3a,
-	0x5b, 0x6d, 0x30, 0x9c, 0x94, 0xcf, 0x3c, 0x3a, 0x61, 0xbb, 0xf2, 0x12, 0x8b, 0x47, 0xe2, 0xda,
-	0x72, 0x86, 0xc9, 0xb3, 0x75, 0x06, 0xc6, 0x40, 0xdc, 0xad, 0x38, 0x26, 0x54, 0x52, 0x12, 0x29,
-	0x4a, 0x25, 0x90, 0x47, 0xf4, 0x18, 0x20, 0x11, 0x59, 0xc2, 0xe8, 0x50, 0x24, 0x32, 0x5e, 0x7d,
-	0x8d, 0x78, 0x91, 0xf5, 0xbb, 0x0c, 0x0d, 0x9f, 0x71, 0x32, 0x21, 0xe1, 0x88, 0x0b, 0x08, 0x1d,
-	0x83, 0xc6, 0x57, 0x71, 0xa6, 0x7a, 0xd0, 0x3e, 0xb2, 0xf3, 0x49, 0xed, 0x62, 0x95, 0xfd, 0x45,
-	0x94, 0x04, 0xaa, 0x10, 0x1d, 0x41, 0x3d, 0x15, 0x23, 0x0d, 0x55, 0xaf, 0xd9, 0xfd, 0x86, 0x04,
-	0x7c, 0xd9, 0xef, 0x23, 0xd0, 0x43, 0x46, 0xaf, 0xa5, 0x74, 0x45, 0xf5, 0x54, 0x93, 0xa1, 0x17,
-	0x49, 0x96, 0x4a, 0x28, 0x96, 0x96, 0xb1, 0x24, 0xe0, 0xaf, 0xa7, 0x1c, 0xb3, 0x68, 0xd5, 0xac,
-	0x66, 0x53, 0xca, 0xb3, 0xf5, 0x0d, 0x34, 0x29, 0x8a, 0xf6, 0x40, 0xff, 0xe8, 0x0e, 0x06, 0xce,
-	0x7b, 0xd7, 0xbc, 0x27, 0x0a, 0x0f, 0x2e, 0x02, 0xcf, 0xf5, 0xbb, 0x83, 0x4b, 0xaf, 0x3f, 0x0c,
-	0xdc, 0xcf, 0x66, 0xe9, 0x1f, 0xcc, 0x39, 0x3f, 0x37, 0xcb, 0xa8, 0x01, 0xc6, 0x87, 0x4f, 0x9e,
-	0xaf, 0x2a, 0x2a, 0x9b, 0x48, 0xe6, 0x34, 0x74, 0x08, 0xfb, 0x97, 0x8e, 0xdf, 0xed, 0xb9, 0x81,
-	0x48, 0x3b, 0xdd, 0xaf, 0x66, 0xd5, 0x7a, 0x0e, 0x70, 0xb1, 0x24, 0x98, 0x46, 0x3d, 0x92, 0x70,
-	0xb9, 0xcd, 0x89, 0x8a, 0xe4, 0x36, 0x2b, 0xa2, 0xa1, 0x3c, 0x6c, 0xff, 0xd1, 0xa0, 0x76, 0xa5,
-	0x7c, 0x81, 0x4e, 0xc1, 0x74, 0xc4, 0x8a, 0x63, 0x9e, 0x11, 0x93, 0x19, 0x89, 0x11, 0xda, 0x3e,
-	0x5e, 0xbe, 0xf4, 0x56, 0x01, 0xdb, 0xd8, 0xe5, 0x04, 0x6a, 0xee, 0x2f, 0xa1, 0x94, 0xdc, 0x82,
-	0xa1, 0xaf, 0x75, 0xd0, 0xfd, 0x6d, 0x5a, 0x19, 0xb1, 0xf5, 0x60, 0x0b, 0x14, 0x86, 0x38, 0x86,
-	0x6a, 0x8f, 0x4d, 0x09, 0x2d, 0x4a, 0xe4, 0x4e, 0x2b, 0x4a, 0x6c, 0x9c, 0xf4, 0x1a, 0x74, 0x1f,
-	0xff, 0x94, 0x5d, 0xdc, 0x98, 0x72, 0x0a, 0xfb, 0x45, 0x93, 0xec, 0xe8, 0xed, 0xe1, 0x6e, 0x3b,
-	0x9d, 0x94, 0xd0, 0x2b, 0xd0, 0xfa, 0x84, 0x4e, 0xff, 0xa7, 0xec, 0x1a, 0xff, 0x1d, 0x98, 0x01,
-	0x0e, 0x31, 0xb9, 0xc6, 0x51, 0x80, 0x7f, 0xa4, 0x58, 0x3e, 0xdd, 0x0d, 0xdf, 0xe1, 0x0c, 0x0e,
-	0xd7, 0x94, 0x3b, 0x2c, 0xea, 0x2d, 0x34, 0x06, 0x98, 0xf2, 0x5b, 0x6a, 0x76, 0x5e, 0x42, 0x2b,
-	0x64, 0x0b, 0x7b, 0x4a, 0xf8, 0x2c, 0x1d, 0xdb, 0x8b, 0x90, 0xcc, 0xe7, 0x8c, 0x12, 0x3b, 0xfb,
-	0xa3, 0x74, 0xf6, 0x32, 0x07, 0xf5, 0x25, 0x71, 0x5c, 0x53, 0xfc, 0x37, 0x7f, 0x03, 0x00, 0x00,
-	0xff, 0xff, 0x05, 0x61, 0xd7, 0x48, 0x6f, 0x04, 0x00, 0x00,
+	// 667 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x94, 0x55, 0xdd, 0x52, 0xd3, 0x50,
+	0x10, 0xb6, 0x69, 0xda, 0x84, 0x25, 0x94, 0x70, 0x86, 0x41, 0xa6, 0x8c, 0x33, 0x4e, 0xc6, 0x71,
+	0x74, 0x74, 0x02, 0x96, 0x11, 0xc7, 0x9f, 0x0b, 0x0b, 0x0d, 0x12, 0x07, 0x2b, 0xa6, 0x72, 0xe1,
+	0x15, 0x03, 0xc9, 0x29, 0x3d, 0xda, 0xe6, 0xc4, 0x26, 0x01, 0x79, 0x0d, 0xdf, 0xc1, 0xf7, 0xf4,
+	0xfc, 0x24, 0xed, 0x01, 0x72, 0x01, 0x57, 0xdd, 0xb3, 0xfb, 0x7d, 0xd9, 0xdd, 0x6f, 0x77, 0xa7,
+	0x60, 0xe5, 0xc9, 0x98, 0xc4, 0xbf, 0xdc, 0x64, 0x4a, 0x33, 0x8a, 0x4c, 0xf1, 0x13, 0xe1, 0xa1,
+	0x63, 0x40, 0xc3, 0x9b, 0x24, 0xd9, 0x95, 0xf3, 0x04, 0xcc, 0x5d, 0x4a, 0xc7, 0x01, 0x4e, 0x13,
+	0xb4, 0x0e, 0x46, 0x9a, 0x87, 0x21, 0x4e, 0xd3, 0xf5, 0xda, 0xe3, 0xda, 0x33, 0x33, 0x28, 0x9f,
+	0x4e, 0x1b, 0xf4, 0xfe, 0xe9, 0x04, 0x23, 0x04, 0x7a, 0xcc, 0x7e, 0x45, 0x78, 0x21, 0x10, 0xb6,
+	0xb3, 0x0a, 0x9a, 0xdf, 0x43, 0x2d, 0xd0, 0x48, 0x24, 0xfc, 0xf5, 0x80, 0x59, 0x4e, 0x07, 0xcc,
+	0x6e, 0x9e, 0x8d, 0xfc, 0x78, 0x48, 0xab, 0x58, 0xdc, 0x97, 0x9c, 0xb2, 0x44, 0x9a, 0xf4, 0x71,
+	0xdb, 0x79, 0x0f, 0xe6, 0x80, 0x65, 0x13, 0x1c, 0x1b, 0xea, 0xf9, 0xec, 0x83, 0xdc, 0x44, 0x8f,
+	0x00, 0x52, 0x16, 0x25, 0x34, 0x3e, 0x61, 0x01, 0xc9, 0x5b, 0x28, 0x3c, 0x7e, 0xe4, 0xfc, 0xd5,
+	0xc0, 0xea, 0xd3, 0x8c, 0x0c, 0x49, 0x78, 0x9a, 0x31, 0x17, 0xda, 0x04, 0x3d, 0xbb, 0x4a, 0x64,
+	0xd6, 0x56, 0x67, 0xc3, 0x2d, 0x7b, 0x77, 0x55, 0x94, 0xfb, 0x9d, 0x41, 0x02, 0x01, 0x44, 0x1b,
+	0xb0, 0x90, 0xa7, 0x78, 0x7a, 0x22, 0x6a, 0x95, 0xdf, 0x37, 0xb9, 0x43, 0x74, 0xfe, 0x10, 0x8c,
+	0x90, 0xc6, 0x17, 0x3c, 0x75, 0x5d, 0xd4, 0xd4, 0xe4, 0x4f, 0x3f, 0xe2, 0x2c, 0x11, 0x10, 0x2c,
+	0x5d, 0xb2, 0xb8, 0xa3, 0xd4, 0xeb, 0x8c, 0x46, 0x57, 0xeb, 0x0d, 0xd9, 0x25, 0xb7, 0x9d, 0x9f,
+	0xa0, 0xf3, 0xa4, 0x68, 0x11, 0x8c, 0x2f, 0xde, 0x60, 0xd0, 0xfd, 0xe4, 0xd9, 0x0f, 0x18, 0xb0,
+	0xb5, 0x1f, 0xf8, 0x5e, 0xbf, 0x37, 0x38, 0xf0, 0x8f, 0x4e, 0x02, 0xef, 0x9b, 0x5d, 0xbb, 0xe1,
+	0xeb, 0xee, 0xed, 0xd9, 0x1a, 0xb2, 0xc0, 0xfc, 0xfc, 0xd5, 0xef, 0x0b, 0x44, 0x7d, 0xf6, 0xe2,
+	0x31, 0x1d, 0xad, 0xc0, 0xd2, 0x41, 0xb7, 0xdf, 0x3b, 0xf4, 0x02, 0x16, 0xee, 0xf6, 0x7e, 0xd8,
+	0x0d, 0xe7, 0x29, 0xc0, 0xfe, 0x94, 0xe0, 0x38, 0x3a, 0x24, 0x69, 0xc6, 0xe7, 0x3b, 0x14, 0x2f,
+	0x3e, 0xdf, 0x3a, 0x2b, 0xa8, 0x7c, 0x3a, 0x1f, 0xc1, 0xde, 0x63, 0x35, 0xe3, 0x69, 0x2a, 0x54,
+	0x11, 0xe8, 0x97, 0xd0, 0xe0, 0x7d, 0x48, 0xec, 0x62, 0x67, 0x6d, 0x2e, 0xa0, 0x0a, 0x0d, 0x24,
+	0x88, 0xcd, 0xdb, 0x52, 0xdd, 0x37, 0xf7, 0x61, 0xb6, 0x03, 0x9a, 0xb2, 0x39, 0xdb, 0xd0, 0xf4,
+	0xe3, 0x0b, 0x92, 0x61, 0x3e, 0xed, 0xcb, 0x11, 0x2d, 0x16, 0x84, 0x9b, 0xaa, 0xde, 0x9a, 0xaa,
+	0x77, 0xe7, 0x5f, 0x13, 0x9a, 0xc7, 0x62, 0xa9, 0xd1, 0x0e, 0xd8, 0x5d, 0xb6, 0x9f, 0x49, 0x26,
+	0x7b, 0x4c, 0x47, 0x24, 0x41, 0x2d, 0x65, 0xce, 0x2c, 0x47, 0x1b, 0xcd, 0xdf, 0xb3, 0x3d, 0xdf,
+	0x02, 0x4b, 0xf2, 0x8a, 0xec, 0xd6, 0x1c, 0xe3, 0xf7, 0x2a, 0x19, 0x1f, 0x60, 0x49, 0xed, 0x2e,
+	0x45, 0xcb, 0x73, 0x90, 0xb8, 0xa3, 0x76, 0xbb, 0x5a, 0x9e, 0x42, 0xc9, 0xa6, 0xf7, 0x87, 0x19,
+	0xe9, 0x1d, 0xab, 0x33, 0x8a, 0x7e, 0x6e, 0x67, 0x59, 0x9d, 0x3b, 0x94, 0xb9, 0xee, 0x80, 0x21,
+	0x3b, 0xb9, 0x67, 0x5d, 0x9b, 0xd0, 0x38, 0xa4, 0xe7, 0x24, 0x46, 0x4a, 0x19, 0xe5, 0xd1, 0xaa,
+	0xa5, 0xcd, 0x8e, 0x72, 0x13, 0x96, 0xfb, 0xf8, 0xf2, 0xfa, 0x9c, 0x6f, 0x74, 0x74, 0x4d, 0x4b,
+	0xf4, 0x0a, 0x0c, 0x46, 0x38, 0x66, 0x47, 0x74, 0xe7, 0x1c, 0xef, 0x60, 0x49, 0x3d, 0xd0, 0x8a,
+	0x96, 0xd6, 0xaa, 0x4f, 0x79, 0xab, 0x86, 0x5e, 0x80, 0x7e, 0x44, 0xe2, 0xf3, 0xdb, 0x94, 0x2a,
+	0x9d, 0xdf, 0x82, 0x1d, 0xe0, 0x10, 0x93, 0x0b, 0x1c, 0x05, 0xf8, 0x77, 0x8e, 0xf9, 0x7c, 0xee,
+	0x28, 0xf8, 0x1b, 0x58, 0x29, 0x28, 0xf7, 0xdc, 0xbc, 0x0e, 0xc0, 0x80, 0xe1, 0xcb, 0xad, 0x57,
+	0xb4, 0x12, 0x9e, 0x4a, 0xce, 0x6b, 0xb0, 0x18, 0x27, 0xbb, 0x67, 0x8d, 0xbb, 0xcf, 0xa1, 0x1d,
+	0xd2, 0x89, 0x7b, 0x4e, 0xb2, 0x51, 0x7e, 0xe6, 0x4e, 0x42, 0x32, 0x1e, 0xd3, 0x98, 0xb8, 0xf2,
+	0xff, 0x60, 0x77, 0x51, 0x9e, 0xd0, 0x11, 0x27, 0x9e, 0x35, 0x05, 0x7f, 0xfb, 0x7f, 0x00, 0x00,
+	0x00, 0xff, 0xff, 0xda, 0x5a, 0xfc, 0x31, 0x2d, 0x06, 0x00, 0x00,
 }
