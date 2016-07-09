@@ -24,8 +24,9 @@ type User struct {
 
 // Conversation represents a conversation between many Users.
 type Conversation struct {
-	ID           int64 `igor:"primary_key"`
-	Name         string
+	ID           int64  `igor:"primary_key"`
+	Name         string `sql:"default:''"`
+	Creator      int64
 	CreationTime time.Time `sql:"default:(now() at time zone 'utc')"`
 }
 

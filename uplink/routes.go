@@ -80,6 +80,19 @@ func (r *uplinkRoutes) AcceptFriendship(ctx context.Context, username *pd.Name) 
 	return &pd.BoolResp{Success: true}, nil
 }
 
+func (r *uplinkRoutes) AcceptInvite(ctx context.Context, convID *pd.ID) (*pd.BoolResp, error) {
+	uid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = r.u.acceptInvite(uid, convID.Id); err != nil {
+		return nil, err
+	}
+
+	return &pd.BoolResp{Success: true}, nil
+}
+
 func (r *uplinkRoutes) Conversations(ctx context.Context, _ *pd.Empty) (*pd.ConversationList, error) {
 	uid, err := r.checkSession(ctx)
 	if err != nil {
@@ -135,6 +148,30 @@ func (r *uplinkRoutes) Friends(ctx context.Context, _ *pd.Empty) (*pd.FriendList
 	return &pd.FriendList{
 		Friends: frienships,
 	}, nil
+}
+
+func (r *uplinkRoutes) Invites(ctx context.Context, _ *pd.Empty) (*pd.InviteList, error) {
+	uid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	convs, err := r.u.getInvites(uid)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &pd.InviteList{Invites: make([]*pd.Invite, len(convs))}
+
+	for i, conv := range convs {
+		ret.Invites[i] = &pd.Invite{
+			Who:      conv.SenderName,
+			ConvName: conv.ConvName,
+			ConvId:   conv.ConvID,
+		}
+	}
+
+	return ret, nil
 }
 
 func (r *uplinkRoutes) Login(_ context.Context, authInfo *pd.AuthInfo) (*pd.SessInfo, error) {
@@ -206,16 +243,12 @@ func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_Notifications
 		return err
 	}
 
-	r.u.Printf("NEW NOTIFICATIONS HANDLER REQ FROM %d\n", uid)
-
 	sink := r.u.dispatcher.AddSink(uid)
-	defer r.u.Printf("HALTING NOTIFICATION ROUTINE FOR USER %d\n", uid)
 	defer r.u.dispatcher.RemoveSink(uid, sink)
 
 	for {
 		select {
 		case notif := <-sink:
-			r.u.Printf("SENDING VIA RPC %v to %d\n", notif, uid)
 
 			if err := stream.Send(notif); err != nil {
 				if err == io.EOF {
@@ -230,8 +263,6 @@ func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_Notifications
 			if err == nil || err == io.EOF {
 				return nil
 			}
-
-			r.u.Println(err)
 
 			return err
 		}

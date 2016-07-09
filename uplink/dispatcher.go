@@ -61,13 +61,13 @@ func (d *dispatcher) addSinkInternal(uid int64, sink chan<- *pd.Notification) {
 
 	d.bins[uid] = append(bin, sink)
 
-	d.l.Printf("ADDED %v TO USER %d's BIN\n", sink, uid)
-
 	sink <- &pd.Notification{Type: pd.Notification_HANDLER_READY}
 }
 
 func (d *dispatcher) notifyInternal(uid int64, notif *pd.Notification) {
-	d.l.Printf("NOTIFYING %d WITH %v\n", uid, notif)
+	if isReservedID(uid) {
+		return
+	}
 
 	if bin, ok := d.bins[uid]; ok {
 		for _, sink := range bin {
@@ -75,8 +75,6 @@ func (d *dispatcher) notifyInternal(uid int64, notif *pd.Notification) {
 				sink <- notif
 			}(sink)
 		}
-	} else {
-		d.l.Printf("NO CHANS FOR USER %d\n", uid)
 	}
 }
 
@@ -92,8 +90,6 @@ func (d *dispatcher) removeSinkInternal(uid int64, toRemove chan<- *pd.Notificat
 			}
 		}
 	}
-
-	d.l.Printf("DELETED %v FROM USER %d's BIN\n", toRemove, uid)
 }
 
 func (d *dispatcher) start() {

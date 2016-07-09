@@ -60,6 +60,25 @@ func (u *Uplink) connectDB(connStr string) error {
 	return nil
 }
 
+func (u *Uplink) acceptInvite(user, convID int64) error {
+	membership := &Member{
+		UID:          user,
+		Conversation: convID,
+	}
+
+	if err := u.db.Create(membership); err != nil {
+		switch {
+		case strings.Contains(err.Error(), "NOT_INVITED"):
+			return pd.ErrNotInvited
+
+		default:
+			return u.serverFault(err)
+		}
+	}
+
+	return u.notifyNewMember(membership)
+}
+
 func (u *Uplink) acceptFriendship(sender, receiver int64) error {
 	friendship, err := u.getPendingFriendshipOf(sender, receiver)
 	if err != nil {
@@ -72,7 +91,11 @@ func (u *Uplink) acceptFriendship(sender, receiver int64) error {
 
 	friendship.Established = true
 
-	return u.serverFault(u.db.Updates(friendship))
+	if err = u.serverFault(u.db.Updates(friendship)); err != nil {
+		return err
+	}
+
+	return u.notifyFriendshipEstablished(friendship)
 }
 
 func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
@@ -133,22 +156,6 @@ func (u *Uplink) getFriendship(friendID int64) (friendship *Friendship, err erro
 	return
 }
 
-func (u *Uplink) getPendingFriendshipOf(sender, receiver int64) (friendship *Friendship, err error) {
-	friendship = new(Friendship)
-
-	err = u.serverFault(u.db.Model(Friendship{}).Where(&Friendship{
-		Sender:      sender,
-		Receiver:    receiver,
-		Established: false,
-	}).Scan(friendship))
-
-	if err == nil && friendship.ID == 0 {
-		err = pd.ErrNoFriendship
-	}
-
-	return
-}
-
 // getFriendships returns all the established Friendships of the given user.
 func (u *Uplink) getFriendships(user int64) (friendships []string, err error) {
 	err = u.serverFault(u.db.CTE(`WITH user_friends AS (
@@ -172,9 +179,43 @@ func (u *Uplink) getInvite(inviteID int64) (invite *Invite, err error) {
 	return
 }
 
-// getMemberships returns all the Member elements "user" belongs to.
-func (u *Uplink) getMemberships(user int64) (convs []Member, err error) {
-	err = u.db.Model(Member{}).Where(&Member{UID: user}).Scan(&convs)
+type inviteInfo struct {
+	SenderName string
+	ConvID     int64
+	ConvName   string
+}
+
+func (u *Uplink) getInvites(uid int64) (convs []inviteInfo, err error) {
+	invites := new(Invite).TableName()
+	conversations := new(Conversation).TableName()
+	users := new(User).TableName()
+
+	err = u.serverFault(u.db.Table(conversations).Joins(
+		fmt.Sprintf("JOIN %s ON %s.id = %s.conversation JOIN %s ON %s.sender = %s.id", invites, conversations, invites, users, invites, users),
+	).Select(
+		fmt.Sprintf("%s.name AS sendername, %s.id as convid, %s.name as convname", users, conversations, conversations),
+	).Where(invites+".receiver = ?", uid).Scan(&convs))
+
+	return
+}
+
+func (u *Uplink) getMembership(memberID int64) (memb *Member, err error) {
+	memb = new(Member)
+
+	err = u.serverFault(u.db.Model(Member{}).Where(&Member{ID: memberID}).Scan(memb))
+
+	if err == nil && memb.ID == 0 {
+		u.Printf("MEMBERSHIP NOT FOUND: %d\n", memberID)
+
+		err = pd.ErrNotMember
+	}
+
+	return
+}
+
+// getMemberships returns all the Member elements of a given Conversation.
+func (u *Uplink) getMemberships(convID int64) (convs []Member, err error) {
+	err = u.db.Model(Member{}).Where(&Member{Conversation: convID}).Scan(&convs)
 
 	return
 }
@@ -200,6 +241,22 @@ func (u *Uplink) getMessageReceivers(msg *Message) (receivers []Member, err erro
 	err = u.serverFault(u.db.Model(Member{}).Joins(
 		fmt.Sprintf("JOIN %s ON %s.conversation = %s.conversation", messages, messages, members),
 	).Where(msg).Scan(&receivers))
+
+	return
+}
+
+func (u *Uplink) getPendingFriendshipOf(sender, receiver int64) (friendship *Friendship, err error) {
+	friendship = new(Friendship)
+
+	err = u.serverFault(u.db.Model(Friendship{}).Where(&Friendship{
+		Sender:      sender,
+		Receiver:    receiver,
+		Established: false,
+	}).Scan(friendship))
+
+	if err == nil && friendship.ID == 0 {
+		err = pd.ErrNoFriendship
+	}
 
 	return
 }
@@ -269,25 +326,14 @@ func (u *Uplink) getUsersOf(conv int64) (users []User, err error) {
 }
 
 func (u *Uplink) newConversation(creatorUID int64, name string) (conv *Conversation, err error) {
-	conv = &Conversation{Name: name}
+	conv = &Conversation{Name: name, Creator: creatorUID}
 
-	trans := u.db.Begin()
-
-	err = u.serverFault(trans.Create(conv))
+	err = u.serverFault(u.db.Create(conv))
 	if err != nil {
-		trans.Rollback()
-
 		return
 	}
 
-	err = u.serverFault(trans.Create(&Member{UID: creatorUID, Conversation: conv.ID}))
-	if err != nil {
-		trans.Rollback()
-
-		return
-	}
-
-	return conv, u.serverFault(trans.Commit())
+	return conv, nil
 }
 
 func (u *Uplink) invite(sender, receiver, convID int64) (*Invite, error) {
@@ -325,6 +371,10 @@ func (u *Uplink) invite(sender, receiver, convID int64) (*Invite, error) {
 		}
 	}
 
+	if err = u.notifyNewInvite(invite); err != nil {
+		return nil, err
+	}
+
 	return invite, nil
 }
 
@@ -354,29 +404,41 @@ func (u *Uplink) newFriendship(sender int64, receiver int64) (friendship *Friend
 		Receiver: receiver,
 	}
 
-	err = u.db.Create(friendship)
+	if err = u.db.Create(friendship); err != nil {
+		if strings.Contains(err.Error(), "ALREADY_FRIENDS") {
+			return nil, pd.ErrAlreadyFriends
+		}
 
-	if err != nil && strings.Contains(err.Error(), "ALREADY_FRIENDS") {
-		return nil, pd.ErrAlreadyFriends
+		return nil, u.serverFault(err)
 	}
 
-	return friendship, u.serverFault(err)
+	if err = u.notifyFriendshipRequest(friendship); err != nil {
+		return nil, err
+	}
+
+	return friendship, nil
 }
 
-func (u *Uplink) newMessage(conv int64, sender int64, body string) (msg *Message, err error) {
-	msg = &Message{
+func (u *Uplink) newMessage(conv int64, sender int64, body string) (*Message, error) {
+	msg := &Message{
 		Conversation: conv,
 		Sender:       sender,
 		Body:         body,
 	}
 
-	err = u.db.Create(msg)
+	if err := u.db.Create(msg); err != nil {
+		if strings.Contains(err.Error(), "NOT_MEMBER") {
+			return nil, pd.ErrNotMember
+		}
 
-	if err != nil && strings.Contains(err.Error(), "NOT_MEMBER") {
-		return nil, pd.ErrNotMember
+		return nil, u.serverFault(err)
 	}
 
-	return msg, u.serverFault(err)
+	if err := u.notifyNewMessage(msg); err != nil {
+		return nil, err
+	}
+
+	return msg, nil
 }
 
 func (u *Uplink) newSession(uid int64) (session *Session, err error) {

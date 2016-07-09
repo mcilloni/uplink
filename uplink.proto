@@ -20,7 +20,7 @@ service Uplink {
   rpc Conversations (Empty) returns (ConversationList);
   rpc Exists (Name) returns (BoolResp);
   rpc Friends (Empty) returns (FriendList);
-  rpc Invites (Empty) returns (ConversationList);
+  rpc Invites (Empty) returns (InviteList);
   rpc Login (AuthInfo) returns (SessInfo);
   rpc NewConversation (Name) returns (ID);
   rpc NewUser (AuthInfo) returns (SessInfo);
@@ -87,7 +87,12 @@ message Conversation {
   string name = 2;
 };
 
+message InviteList {
+  repeated Invite invites = 1;
+}
+
 message Invite {
   string who = 1;
   int64 conv_id = 2;
+  string conv_name = 3;
 };
