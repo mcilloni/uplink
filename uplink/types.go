@@ -41,6 +41,7 @@ type Member struct {
 // Message represents a message belonging to a Conversation.
 type Message struct {
 	ID           int64 `igor:"primary_key"`
+	Tag          int64
 	Conversation int64
 	Sender       int64
 	RecvTime     time.Time `sql:"default:(now() at time zone 'utc')"`

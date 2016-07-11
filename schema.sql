@@ -17,7 +17,8 @@ CREATE TABLE conversations (
   id BIGSERIAL NOT NULL PRIMARY KEY,
   name CHARACTER VARYING(200) NOT NULL DEFAULT '',
   creator BIGINT NOT NULL REFERENCES users ON DELETE CASCADE,
-  creation_time TIMESTAMP WITHOUT TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL
+  creation_time TIMESTAMP WITHOUT TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL,
+  counter BIGINT NOT NULL DEFAULT 0
 );
 ALTER TABLE conversations OWNER TO uplink;
 
@@ -32,6 +33,7 @@ ALTER TABLE members OWNER TO uplink;
 
 CREATE TABLE messages (
   id BIGSERIAL NOT NULL PRIMARY KEY,
+  tag BIGINT,
   conversation BIGINT NOT NULL REFERENCES conversations ON DELETE CASCADE,
   sender BIGINT NOT NULL REFERENCES users,
   recv_time TIMESTAMP WITHOUT TIME ZONE DEFAULT TIMEZONE('utc'::TEXT, NOW()) NOT NULL,
@@ -70,19 +72,18 @@ CREATE TABLE sessions (
 ALTER TABLE sessions OWNER TO uplink;
 
 
-CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT) RETURNS BOOLEAN
+CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT, OUT ret BOOLEAN) RETURNS BOOLEAN
   LANGUAGE plpgsql
   AS $$
   BEGIN
-    PERFORM(SELECT 1 FROM sessions S WHERE S.session_id = _sessid AND S.uid = _uid AND S.acc_time > TIMEZONE('utc'::TEXT, (NOW() - (30 * interval '1 day'))));
-
-    IF FOUND THEN
-      UPDATE sessions SET acc_time = TIMEZONE('utc'::TEXT, NOW());
-
-      RETURN TRUE;
-    ELSE
-      RETURN FALSE;
-    END IF;
+    WITH FS AS (
+      UPDATE sessions S
+      SET acc_time = TIMEZONE('utc'::TEXT, NOW())
+      WHERE S.session_id = _sessid
+        AND S.uid = _uid
+        AND S.acc_time > TIMEZONE('utc'::TEXT, (NOW() - (30 * interval '1 day')))
+      RETURNING *
+    ) SELECT EXISTS(SELECT 1 FROM FS) INTO ret;
   END
 $$;
 
@@ -119,13 +120,20 @@ CREATE OR REPLACE FUNCTION are_friends(_uid1 BIGINT, _uid2 BIGINT, out ret BOOLE
 $$;
 
 
-CREATE OR REPLACE FUNCTION check_membership() RETURNS TRIGGER
+CREATE OR REPLACE FUNCTION new_message() RETURNS TRIGGER
 	LANGUAGE plpgsql
 	AS $$
 	BEGIN
-		IF NOT IS_MEMBER(NEW.sender) THEN -- 'uplink' has uid = 1 and can do everything, and it is member by default
+		IF NOT IS_MEMBER(NEW.sender, NEW.conversation) THEN -- 'uplink' has uid = 1 and can do everything, and it is member by default
 			RAISE EXCEPTION 'NOT_MEMBER';
 		END IF;
+
+    WITH NT AS (
+      UPDATE conversations
+      SET counter = counter + 1
+      WHERE id = NEW.conversation
+      RETURNING counter
+    ) SELECT counter INTO NEW.tag FROM NT;
 
 		RETURN NEW;
 	END
@@ -218,7 +226,7 @@ CREATE OR REPLACE FUNCTION add_default_users() RETURNS TRIGGER
   END
 $$;
 
-CREATE TRIGGER before_insert_message BEFORE INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE check_membership();
+CREATE TRIGGER before_insert_message BEFORE INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE new_message();
 CREATE TRIGGER before_insert_member BEFORE INSERT ON members FOR EACH ROW EXECUTE PROCEDURE check_invite();
 CREATE TRIGGER after_insert_conversation AFTER INSERT ON conversations FOR EACH ROW EXECUTE PROCEDURE add_default_users();
 CREATE TRIGGER after_delete_member AFTER DELETE ON members FOR EACH ROW EXECUTE PROCEDURE remove_empty_conv();

@@ -90,4 +90,7 @@ var (
 
 	// ErrReservedUser means that the user tried to access information about a reserved user.
 	ErrReservedUser = grpc.Errorf(codes.PermissionDenied, "ERESERVEDUSER: the requested user is reserved")
+
+	// ErrInvalidTag means that the user submitted an invalid message tag.
+	ErrInvalidTag = grpc.Errorf(codes.InvalidArgument, "EINVALIDTAG: wrong tag submitted")
 )

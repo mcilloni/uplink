@@ -199,6 +199,41 @@ func (r *uplinkRoutes) Login(_ context.Context, authInfo *pd.AuthInfo) (*pd.Sess
 	}, nil
 }
 
+func (r *uplinkRoutes) Messages(ctx context.Context, opts *pd.FetchOpts) (*pd.MessageList, error) {
+	uid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = r.u.isMember(uid, opts.ConvId); err != nil {
+		return nil, err
+	}
+
+	convMsgs, err := r.u.getMessages(opts.ConvId, opts.LastTag)
+	if err != nil {
+		return nil, err
+	}
+
+	lenList := len(convMsgs)
+
+	msgList := &pd.MessageList{
+		ConvId:   opts.ConvId,
+		Messages: make([]*pd.Message, lenList),
+	}
+
+	for i, convMsg := range convMsgs {
+		// reversing order (0 is oldest, lenList - 1 newest)
+		msgList.Messages[lenList-i-1] = &pd.Message{
+			Tag:        convMsg.Tag,
+			SenderName: convMsg.SenderName,
+			Timestamp:  convMsg.Timestamp,
+			Body:       convMsg.Body,
+		}
+	}
+
+	return msgList, nil
+}
+
 func (r *uplinkRoutes) NewConversation(ctx context.Context, convName *pd.Name) (*pd.ID, error) {
 	uid, err := r.checkSession(ctx)
 	if err != nil {
@@ -249,7 +284,6 @@ func (r *uplinkRoutes) Notifications(_ *pd.Empty, stream pd.Uplink_Notifications
 	for {
 		select {
 		case notif := <-sink:
-
 			if err := stream.Send(notif); err != nil {
 				if err == io.EOF {
 					return nil
@@ -329,6 +363,23 @@ func (r *uplinkRoutes) SendInvite(ctx context.Context, invReq *pd.Invite) (*pd.B
 	}
 
 	return &pd.BoolResp{Success: true}, nil
+}
+
+func (r *uplinkRoutes) SendMessage(ctx context.Context, req *pd.NewMsgReq) (*pd.NewMsgResp, error) {
+	senderUID, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	msg, err := r.u.newMessage(req.ConvId, senderUID, req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.NewMsgResp{
+		Tag:       msg.Tag,
+		Timestamp: msg.RecvTime.Unix(),
+	}, nil
 }
 
 func (r *uplinkRoutes) SentRequests(ctx context.Context, _ *pd.Empty) (*pd.FriendList, error) {

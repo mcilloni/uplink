@@ -37,18 +37,25 @@ func (u *Uplink) notifyNewMessage(message *Message) error {
 		return err
 	}
 
+	name, err := u.getUsername(message.Sender)
+	if err != nil {
+		return err
+	}
+
 	for _, member := range members {
-		name, err := u.getUsername(member.UID)
-		if err != nil {
-			return err
+		if isReservedID(member.UID) {
+			continue
 		}
 
-		u.dispatcher.Notify(member.ID, &pd.Notification{
+		notif := &pd.Notification{
 			Type:     pd.Notification_MESSAGE,
 			UserName: name,
 			ConvId:   message.Conversation,
+			MsgTag:   message.Tag,
 			Body:     message.Body,
-		})
+		}
+
+		u.dispatcher.Notify(member.UID, notif)
 	}
 
 	return nil

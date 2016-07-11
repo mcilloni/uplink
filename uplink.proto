@@ -22,6 +22,7 @@ service Uplink {
   rpc Friends (Empty) returns (FriendList);
   rpc Invites (Empty) returns (InviteList);
   rpc Login (AuthInfo) returns (SessInfo);
+  rpc Messages (FetchOpts) returns (MessageList);
   rpc NewConversation (Name) returns (ID);
   rpc NewUser (AuthInfo) returns (SessInfo);
   rpc Notifications(Empty) returns (stream Notification);
@@ -29,6 +30,7 @@ service Uplink {
   rpc ReceivedRequests (Empty) returns (FriendList);
   rpc RequestFriendship (Name) returns (BoolResp);
   rpc SendInvite (Invite) returns (BoolResp);
+  rpc SendMessage (NewMsgReq) returns (NewMsgResp);
   rpc SentRequests (Empty) returns (FriendList);
 }
 
@@ -71,7 +73,8 @@ message Notification {
   string user_name = 2;
   int64 conv_id = 3;
   string conv_name = 4;
-  string body = 5;
+  int64 msg_tag = 5;
+  string body = 6;
 };
 
 message FriendList {
@@ -95,4 +98,31 @@ message Invite {
   string who = 1;
   int64 conv_id = 2;
   string conv_name = 3;
+};
+
+message FetchOpts {
+  int64 conv_id = 1;
+  int64 last_tag = 2;
+};
+
+message MessageList {
+  int64 conv_id = 1;
+  repeated Message messages = 3;
+};
+
+message Message {
+  int64 tag = 1;
+  string sender_name = 2;
+  int64 timestamp = 3;
+  string body = 4;
+};
+
+message NewMsgReq {
+  int64 conv_id = 1;
+  string body = 2;
+};
+
+message NewMsgResp {
+  int64 tag = 1;
+  int64 timestamp = 2;
 };

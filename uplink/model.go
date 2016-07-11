@@ -22,6 +22,10 @@ import (
 	pd "github.com/mcilloni/uplink/protodef"
 )
 
+const (
+	maxMessagesToGet = 20
+)
+
 func isReservedID(uid int64) bool {
 	return uid == 1
 }
@@ -51,6 +55,8 @@ func (u *Uplink) serverFault(e error) error {
 func (u *Uplink) connectDB(connStr string) error {
 	if u.db == nil {
 		db, err := igor.Connect(connStr)
+
+		//db.Log(u.Logger)
 
 		u.db = db
 
@@ -205,8 +211,6 @@ func (u *Uplink) getMembership(memberID int64) (memb *Member, err error) {
 	err = u.serverFault(u.db.Model(Member{}).Where(&Member{ID: memberID}).Scan(memb))
 
 	if err == nil && memb.ID == 0 {
-		u.Printf("MEMBERSHIP NOT FOUND: %d\n", memberID)
-
 		err = pd.ErrNotMember
 	}
 
@@ -228,8 +232,31 @@ func (u *Uplink) getMessage(msgID int64) (msg *Message, err error) {
 	return
 }
 
-func (u *Uplink) getMessages(conv int64, limit, offset int) (msgs []Message, err error) {
-	err = u.serverFault(u.db.Model(Message{}).Where(&Message{Conversation: conv}).Limit(limit).Offset(offset).Scan(msgs))
+type convMsg struct {
+	Tag        int64
+	SenderName string
+	Timestamp  int64
+	Body       string
+}
+
+// remember: they are returned in reversed order (0 is newest, len - 1 oldest)!
+func (u *Uplink) getMessages(conv int64, lastTag int64) (msgs []convMsg, err error) {
+	messages := new(Message).TableName()
+	users := new(User).TableName()
+
+	whereClause := "conversation = ?"
+	whereList := []interface{}{conv}
+
+	if lastTag > 0 {
+		whereClause += " AND tag < ?"
+		whereList = append(whereList, lastTag)
+	}
+
+	err = u.serverFault(u.db.Table(messages).Joins(
+		fmt.Sprintf("JOIN %s ON %s.sender = %s.id", users, messages, users),
+	).Select(
+		"tag, name AS sendername, CAST(EXTRACT(EPOCH FROM recv_time) AS BIGINT) AS timestamp, body",
+	).Where(whereClause, whereList...).Limit(maxMessagesToGet).Order("tag DESC").Scan(&msgs))
 
 	return
 }
@@ -378,6 +405,20 @@ func (u *Uplink) invite(sender, receiver, convID int64) (*Invite, error) {
 	return invite, nil
 }
 
+func (u *Uplink) isMember(UID, convID int64) (err error) {
+	membership := Member{}
+	err = u.serverFault(u.db.Model(Member{}).Where(&Member{
+		UID:          UID,
+		Conversation: convID,
+	}).Scan(&membership))
+
+	if err == nil && membership.ID == 0 {
+		err = pd.ErrNotMember
+	}
+
+	return
+}
+
 func (u *Uplink) loginUser(name, pass string) (user *User, err error) {
 	if isReservedName(name) {
 		return nil, pd.ErrReservedUser
@@ -430,6 +471,8 @@ func (u *Uplink) newMessage(conv int64, sender int64, body string) (*Message, er
 		if strings.Contains(err.Error(), "NOT_MEMBER") {
 			return nil, pd.ErrNotMember
 		}
+
+		u.Printf("FAILED ON MSG %s FROM %d\n", body, sender)
 
 		return nil, u.serverFault(err)
 	}
