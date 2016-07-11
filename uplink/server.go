@@ -26,7 +26,7 @@ import (
 type Uplink struct {
 	*log.Logger
 
-	cfg        Config
+	cfg        *Config
 	db         *igor.Database
 	dispatcher *dispatcher
 }
@@ -162,13 +162,13 @@ func (u *Uplink) startDispatcher() {
 
 // Start starts a previously configured Uplink instance.
 func (u *Uplink) Start() (err error) {
-	err = u.connectDB(u.cfg.DBConnInfo)
+	err = u.connectDB(u.cfg.DB.ConnString)
 
 	if err != nil {
 		return
 	}
 
-	listener, err := net.Listen("tcp", u.cfg.ConnInfo)
+	listener, err := net.Listen(u.cfg.Listener.Proto, u.cfg.Listener.ConnInfo)
 	if err != nil {
 		return
 	}
@@ -190,6 +190,6 @@ func (u *Uplink) Start() (err error) {
 
 // New Initializes and returns an instance of Uplink according
 // to the given Config.
-func New(cfg Config, logger *log.Logger) (*Uplink, error) {
+func New(cfg *Config, logger *log.Logger) (*Uplink, error) {
 	return &Uplink{cfg: cfg, Logger: logger}, nil
 }

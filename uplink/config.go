@@ -12,10 +12,27 @@
 
 package uplink
 
+import (
+	"gopkg.in/gcfg.v1"
+)
+
 // Config represents the configuration that should be provided to uplink.Start
 // to fully initialize a Server instance.
 type Config struct {
-	Proto      string
-	ConnInfo   string
-	DBConnInfo string
+	Listener struct {
+		Proto    string
+		ConnInfo string
+	}
+	DB struct {
+		ConnString string
+	}
+}
+
+// ReadConfig reads the configuration for uplink from a file specified by path.
+// See provided example for syntax.
+func ReadConfig(path string) (cfg *Config, err error) {
+	cfg = new(Config)
+	err = gcfg.ReadFileInto(cfg, path)
+
+	return
 }

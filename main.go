@@ -20,6 +20,8 @@ import (
 	"github.com/mcilloni/uplink/uplink"
 )
 
+var confPath = flag.String("config", "", "path to the given configuration")
+
 func init() {
 	flag.Parse()
 }
@@ -27,10 +29,16 @@ func init() {
 func main() {
 	logger := log.New(os.Stderr, "uplink:", log.LstdFlags)
 
-	up, err := uplink.New(uplink.Config{
-		ConnInfo:   ":4444",
-		DBConnInfo: "user=uplink password=linkie dbname=uplink sslmode=disable",
-	}, logger)
+	if *confPath == "" {
+		logger.Fatalln("error: no config provided. use the config parameter to supply one")
+	}
+
+	conf, err := uplink.ReadConfig(*confPath)
+	if err != nil {
+		logger.Fatalf("error: %v\n", err)
+	}
+
+	up, err := uplink.New(conf, logger)
 
 	if err != nil {
 		logger.Fatal(err)
