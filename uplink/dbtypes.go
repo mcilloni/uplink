@@ -73,6 +73,13 @@ type Session struct {
 	UID       int64
 }
 
+// FCMSubscription represents the RegId of a mobile user associated with FCM.
+type FCMSubscription struct {
+	ID    int64 `igor:"primary_key"`
+	UID   int64
+	RegID string
+}
+
 // TableName returns the name of the table associated with User.
 func (User) TableName() string {
 	return "users"
@@ -106,4 +113,9 @@ func (Friendship) TableName() string {
 // TableName returns the name of the table associated with Session.
 func (Session) TableName() string {
 	return "sessions"
+}
+
+// TableName returns the name of the table associated with Session.
+func (FCMSubscription) TableName() string {
+	return "fcm_subscriptions"
 }

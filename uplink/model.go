@@ -24,14 +24,16 @@ import (
 
 const (
 	maxMessagesToGet = 20
+	reservedUID      = 1
+	reservedName     = "uplink"
 )
 
 func isReservedID(uid int64) bool {
-	return uid == 1
+	return uid == reservedUID
 }
 
 func isReservedName(name string) bool {
-	return name == "uplink"
+	return name == reservedName
 }
 
 func (u *Uplink) printErr(e error) {
@@ -82,6 +84,15 @@ func (u *Uplink) acceptInvite(user, convID int64) error {
 		}
 	}
 
+	name, err := u.getUsername(user)
+	if err != nil {
+		return err
+	}
+
+	if _, err = u.newMessage(convID, 1, "JOINED:"+name, false); err != nil {
+		return err
+	}
+
 	return u.notifyNewMember(membership)
 }
 
@@ -110,6 +121,14 @@ func (u *Uplink) checkSession(sessid string, uid int64) (res bool, err error) {
 	}
 
 	err = u.serverFault(u.db.Model(Session{}).Select("valid_session(?,?)", sessid, uid).Scan(&res))
+
+	return
+}
+
+func (u *Uplink) deleteFCMSubscription(regID string) (err error) {
+	err = u.serverFault(u.db.Delete(&FCMSubscription{
+		RegID: regID,
+	}))
 
 	return
 }
@@ -146,6 +165,31 @@ func (u *Uplink) getConversations(UID int64) (convs []Conversation, err error) {
 	err = u.serverFault(u.db.Model(Conversation{}).Joins(
 		fmt.Sprintf("JOIN %s ON %s.id = %s.conversation", members, conversations, members),
 	).Where(fmt.Sprintf("%s.uid = ?", members), UID).Scan(&convs))
+
+	return
+}
+
+func (u *Uplink) getFCMSubscriptions(uid int64) (regids []string, err error) {
+	err = u.serverFault(u.db.Model(&FCMSubscription{}).Select("reg_id").
+		Where("uid = ?", uid).Scan(&regids),
+	)
+
+	return
+}
+
+func (u *Uplink) getFCMSubscriptionsForConv(convID int64) (regids []string, err error) {
+	members := new(Member).TableName()
+	fcmSubscription := new(FCMSubscription).TableName()
+
+	err = u.serverFault(u.db.Model(&FCMSubscription{}).Joins(
+		fmt.Sprintf("JOIN %s ON %s.uid = %s.uid", members, fcmSubscription, members),
+	).Select("reg_id").Where("conversation = ?", convID).Scan(&regids))
+
+	return
+}
+
+func (u *Uplink) getFCMSubscriptionsForUIDList(uids []int64) (regids []string, err error) {
+	err = u.serverFault(u.db.Model(&FCMSubscription{}).Select("reg_id").Where("uid IN (?)", uids).Scan(&regids))
 
 	return
 }
@@ -435,6 +479,21 @@ func (u *Uplink) loginUser(name, pass string) (user *User, err error) {
 	return
 }
 
+func (u *Uplink) newFCMSubscription(uid int64, regid string) (subscription *FCMSubscription, err error) {
+	if isReservedID(uid) {
+		return nil, pd.ErrReservedUser
+	}
+
+	subscription = &FCMSubscription{
+		UID:   uid,
+		RegID: regid,
+	}
+
+	err = u.serverFault(u.db.Create(subscription))
+
+	return
+}
+
 func (u *Uplink) newFriendship(sender int64, receiver int64) (friendship *Friendship, err error) {
 	if isReservedID(sender) || isReservedID(receiver) {
 		return nil, pd.ErrReservedUser
@@ -460,7 +519,7 @@ func (u *Uplink) newFriendship(sender int64, receiver int64) (friendship *Friend
 	return friendship, nil
 }
 
-func (u *Uplink) newMessage(conv int64, sender int64, body string) (*Message, error) {
+func (u *Uplink) newMessage(conv int64, sender int64, body string, notify bool) (*Message, error) {
 	msg := &Message{
 		Conversation: conv,
 		Sender:       sender,
@@ -477,8 +536,10 @@ func (u *Uplink) newMessage(conv int64, sender int64, body string) (*Message, er
 		return nil, u.serverFault(err)
 	}
 
-	if err := u.notifyNewMessage(msg); err != nil {
-		return nil, err
+	if notify {
+		if err := u.notifyNewMessage(msg); err != nil {
+			return nil, err
+		}
 	}
 
 	return msg, nil
@@ -532,6 +593,12 @@ func (u *Uplink) subscribe(user, convID int64) (member *Member, err error) {
 			err = u.serverFault(e)
 		}
 	}
+
+	return
+}
+
+func (u *Uplink) updateFCMSubscription(old, new string) (err error) {
+	err = u.serverFault(u.db.Where(&FCMSubscription{RegID: old}).Updates(&FCMSubscription{RegID: new}))
 
 	return
 }

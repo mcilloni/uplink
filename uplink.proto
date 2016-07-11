@@ -32,6 +32,7 @@ service Uplink {
   rpc SendInvite (Invite) returns (BoolResp);
   rpc SendMessage (NewMsgReq) returns (NewMsgResp);
   rpc SentRequests (Empty) returns (FriendList);
+  rpc SubmitRegID (RegID) returns (BoolResp);
 }
 
 message Empty {}
@@ -125,4 +126,8 @@ message NewMsgReq {
 message NewMsgResp {
   int64 tag = 1;
   int64 timestamp = 2;
+};
+
+message RegID {
+  string reg_id = 1;
 };

@@ -15,6 +15,7 @@ package uplink
 import (
 	"io"
 	"strconv"
+	"strings"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
@@ -371,7 +372,7 @@ func (r *uplinkRoutes) SendMessage(ctx context.Context, req *pd.NewMsgReq) (*pd.
 		return nil, err
 	}
 
-	msg, err := r.u.newMessage(req.ConvId, senderUID, req.Body)
+	msg, err := r.u.newMessage(req.ConvId, senderUID, req.Body, true)
 	if err != nil {
 		return nil, err
 	}
@@ -394,4 +395,22 @@ func (r *uplinkRoutes) SentRequests(ctx context.Context, _ *pd.Empty) (*pd.Frien
 	}
 
 	return &pd.FriendList{Friends: pending}, nil
+}
+
+func (r *uplinkRoutes) SubmitRegID(ctx context.Context, regID *pd.RegID) (*pd.BoolResp, error) {
+	uid, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = r.u.newFCMSubscription(uid, regID.RegId)
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.Contains(err.Error(), "ETOOMANYFCMIDS") {
+		return nil, pd.ErrTooManyFCMIDs
+	}
+
+	return &pd.BoolResp{Success: true}, nil
 }

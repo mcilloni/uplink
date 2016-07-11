@@ -71,6 +71,12 @@ CREATE TABLE sessions (
 );
 ALTER TABLE sessions OWNER TO uplink;
 
+CREATE TABLE fcm_subscriptions (
+  id BIGSERIAL NOT NULL PRIMARY KEY,
+  uid BIGINT NOT NULL REFERENCES users ON DELETE CASCADE,
+  reg_id TEXT NOT NULL
+);
+ALTER TABLE fcm_subscriptions OWNER TO uplink;
 
 CREATE OR REPLACE FUNCTION valid_session(_sessid TEXT, _uid BIGINT, OUT ret BOOLEAN) RETURNS BOOLEAN
   LANGUAGE plpgsql
@@ -226,6 +232,16 @@ CREATE OR REPLACE FUNCTION add_default_users() RETURNS TRIGGER
   END
 $$;
 
+CREATE OR REPLACE FUNCTION check_max_fcm_ids() RETURNS TRIGGER
+  LANGUAGE plpgsql
+  AS $$
+  BEGIN
+    IF (SELECT COUNT(*) >= 10 FROM fcm_subscription WHERE uid = NEW.uid) THEN
+      RAISE EXCEPTION 'TOO_MANY_FCM_IDS';
+    END IF;
+  END
+$$;
+
 CREATE TRIGGER before_insert_message BEFORE INSERT ON messages FOR EACH ROW EXECUTE PROCEDURE new_message();
 CREATE TRIGGER before_insert_member BEFORE INSERT ON members FOR EACH ROW EXECUTE PROCEDURE check_invite();
 CREATE TRIGGER after_insert_conversation AFTER INSERT ON conversations FOR EACH ROW EXECUTE PROCEDURE add_default_users();
@@ -233,5 +249,6 @@ CREATE TRIGGER after_delete_member AFTER DELETE ON members FOR EACH ROW EXECUTE 
 CREATE TRIGGER before_insert_invite BEFORE INSERT ON invites FOR EACH ROW EXECUTE PROCEDURE check_before_invite();
 CREATE TRIGGER before_insert_friendship BEFORE INSERT ON friendships FOR EACH ROW EXECUTE PROCEDURE check_friendship();
 CREATE TRIGGER before_insert_users BEFORE INSERT ON users FOR EACH ROW EXECUTE PROCEDURE hash_password();
+CREATE TRIGGER before_insert_fcm_subscription BEFORE INSERT ON fcm_subscriptions FOR EACH ROW EXECUTE PROCEDURE check_max_fcm_ids();
 
 INSERT INTO users(name, authpass) VALUES ('uplink', '');

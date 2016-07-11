@@ -42,21 +42,25 @@ func (u *Uplink) notifyNewMessage(message *Message) error {
 		return err
 	}
 
+	notif := &pd.Notification{
+		Type:     pd.Notification_MESSAGE,
+		UserName: name,
+		ConvId:   message.Conversation,
+		MsgTag:   message.Tag,
+		Body:     message.Body,
+	}
+
+	deliveryUIDs := make([]int64, len(members))
+
 	for _, member := range members {
 		if isReservedID(member.UID) {
 			continue
 		}
 
-		notif := &pd.Notification{
-			Type:     pd.Notification_MESSAGE,
-			UserName: name,
-			ConvId:   message.Conversation,
-			MsgTag:   message.Tag,
-			Body:     message.Body,
-		}
-
-		u.dispatcher.Notify(member.UID, notif)
+		deliveryUIDs = append(deliveryUIDs, member.UID)
 	}
+
+	u.dispatcher.Notify(deliveryUIDs, notif)
 
 	return nil
 }
@@ -72,7 +76,7 @@ func (u *Uplink) notifyNewInvite(invite *Invite) error {
 		return err
 	}
 
-	u.dispatcher.Notify(invite.Receiver, &pd.Notification{
+	u.dispatcher.Notify([]int64{invite.Receiver}, &pd.Notification{
 		Type:     pd.Notification_JOIN_REQ,
 		UserName: senderName,
 		ConvId:   conversation.ID,
@@ -105,9 +109,16 @@ func (u *Uplink) notifyNewMember(member *Member) error {
 		ConvName: conversation.Name,
 	}
 
-	for _, member := range memberships {
-		u.dispatcher.Notify(member.UID, notification)
+	deliveryUIDs := make([]int64, len(memberships))
+	for _, membership := range memberships {
+		if isReservedID(membership.UID) {
+			continue
+		}
+
+		deliveryUIDs = append(deliveryUIDs, membership.UID)
 	}
+
+	u.dispatcher.Notify(deliveryUIDs, notification)
 
 	return nil
 }
@@ -127,7 +138,7 @@ func (u *Uplink) notifyFriendshipRequest(friendship *Friendship) error {
 		UserName: senderName,
 	}
 
-	u.dispatcher.Notify(friendship.Receiver, notification)
+	u.dispatcher.Notify([]int64{friendship.Receiver}, notification)
 
 	return nil
 }
@@ -143,12 +154,12 @@ func (u *Uplink) notifyFriendshipEstablished(friendship *Friendship) error {
 		return err
 	}
 
-	u.dispatcher.Notify(friendship.Sender, &pd.Notification{
+	u.dispatcher.Notify([]int64{friendship.Sender}, &pd.Notification{
 		Type:     pd.Notification_FRIENDSHIP_ACC,
 		UserName: receiverName,
 	})
 
-	u.dispatcher.Notify(friendship.Receiver, &pd.Notification{
+	u.dispatcher.Notify([]int64{friendship.Receiver}, &pd.Notification{
 		Type:     pd.Notification_FRIENDSHIP_ACC,
 		UserName: senderName,
 	})

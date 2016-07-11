@@ -23,8 +23,14 @@ type Config struct {
 		Proto    string
 		ConnInfo string
 	}
+
 	DB struct {
 		ConnString string
+	}
+
+	FCM struct {
+		SenderID uint64
+		APIKey   string
 	}
 }
 

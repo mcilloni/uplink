@@ -93,4 +93,7 @@ var (
 
 	// ErrInvalidTag means that the user submitted an invalid message tag.
 	ErrInvalidTag = grpc.Errorf(codes.InvalidArgument, "EINVALIDTAG: wrong tag submitted")
+
+	// ErrTooManyFCMIDs means that the user has already submitted more than the allowed number of FCM RegIDs.
+	ErrTooManyFCMIDs = grpc.Errorf(codes.ResourceExhausted, "ETOOMANYFCMIDS: too many FCM RegIDs already registered for this user")
 )

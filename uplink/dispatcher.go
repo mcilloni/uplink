@@ -23,34 +23,40 @@ type sink struct {
 	Sink chan *pd.Notification
 }
 
-type msg struct {
-	UID          int64
+type broadcast struct {
+	UIDs         []int64
 	Notification *pd.Notification
 }
 
 type dispatcher struct {
 	l *log.Logger
 
-	bins    map[int64][]chan<- *pd.Notification
-	started bool
+	pushChans []chan<- *broadcast
+	bins      map[int64][]chan<- *pd.Notification
+	started   bool
 
 	addSinkChan    chan *sink
-	notifyChan     chan *msg
+	notifyChan     chan *broadcast
 	removeSinkChan chan *sink
 }
 
 func startDispatcher(l *log.Logger) *dispatcher {
 	d := &dispatcher{
 		l:              l,
+		pushChans:      make([]chan<- *broadcast, 0),
 		bins:           make(map[int64][]chan<- *pd.Notification),
 		addSinkChan:    make(chan *sink, 100),
-		notifyChan:     make(chan *msg, 1000),
+		notifyChan:     make(chan *broadcast, 1000),
 		removeSinkChan: make(chan *sink, 100),
 	}
 
 	go d.start()
 
 	return d
+}
+
+func (d *dispatcher) addPushChan(sink chan<- *broadcast) {
+	d.pushChans = append(d.pushChans, sink)
 }
 
 func (d *dispatcher) addSinkInternal(uid int64, sink chan<- *pd.Notification) {
@@ -64,16 +70,20 @@ func (d *dispatcher) addSinkInternal(uid int64, sink chan<- *pd.Notification) {
 	sink <- &pd.Notification{Type: pd.Notification_HANDLER_READY}
 }
 
-func (d *dispatcher) notifyInternal(uid int64, notif *pd.Notification) {
-	if isReservedID(uid) {
-		return
+func (d *dispatcher) notifyInternal(uids []int64, notif *pd.Notification) {
+	for _, pushChan := range d.pushChans {
+		go func(pushChan chan<- *broadcast) {
+			pushChan <- &broadcast{UIDs: uids, Notification: notif}
+		}(pushChan)
 	}
 
-	if bin, ok := d.bins[uid]; ok {
-		for _, sink := range bin {
-			go func(sink chan<- *pd.Notification) {
-				sink <- notif
-			}(sink)
+	for _, uid := range uids {
+		if bin, ok := d.bins[uid]; ok {
+			for _, sink := range bin {
+				go func(sink chan<- *pd.Notification) {
+					sink <- notif
+				}(sink)
+			}
 		}
 	}
 }
@@ -104,8 +114,8 @@ func (d *dispatcher) start() {
 		case sink := <-d.addSinkChan:
 			d.addSinkInternal(sink.UID, sink.Sink)
 
-		case msg := <-d.notifyChan:
-			d.notifyInternal(msg.UID, msg.Notification)
+		case broadcast := <-d.notifyChan:
+			d.notifyInternal(broadcast.UIDs, broadcast.Notification)
 
 		case sink := <-d.removeSinkChan:
 			d.removeSinkInternal(sink.UID, sink.Sink)
@@ -120,8 +130,8 @@ func (d *dispatcher) AddSink(uid int64) chan *pd.Notification {
 	return newSink
 }
 
-func (d *dispatcher) Notify(uid int64, notification *pd.Notification) {
-	d.notifyChan <- &msg{uid, notification}
+func (d *dispatcher) Notify(uids []int64, notification *pd.Notification) {
+	d.notifyChan <- &broadcast{uids, notification}
 }
 
 func (d *dispatcher) RemoveSink(uid int64, oldSink chan *pd.Notification) {
