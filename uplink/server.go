@@ -179,6 +179,8 @@ func (u *Uplink) Start() (err error) {
 		return
 	}
 
+	u.Println("connection to PostgreSQL established")
+
 	listener, err := net.Listen(u.cfg.Listener.Proto, u.cfg.Listener.ConnInfo)
 	if err != nil {
 		return
@@ -190,6 +192,9 @@ func (u *Uplink) Start() (err error) {
 	pd.RegisterUplinkServer(srv, newRoute(u))
 
 	u.startDispatcher()
+
+	u.Println("started notifications dispatcher")
+	u.Printf("starting gRPC on %s, %s\n", u.cfg.Listener.Proto, u.cfg.Listener.ConnInfo)
 
 	err = srv.Serve(listener)
 	if err != nil {
