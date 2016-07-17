@@ -17,6 +17,7 @@ option java_outer_classname = "UplinkProto";
 service Uplink {
   rpc AcceptFriendship (Name) returns (BoolResp);
   rpc AcceptInvite (ID) returns (BoolResp);
+  rpc ConversationInfo (ID) returns (Conversation);
   rpc Conversations (Empty) returns (ConversationList);
   rpc Exists (Name) returns (BoolResp);
   rpc Friends (Empty) returns (FriendList);
@@ -89,6 +90,7 @@ message ConversationList {
 message Conversation {
   int64 id = 1;
   string name = 2;
+  Message last_message = 3;
 };
 
 message InviteList {

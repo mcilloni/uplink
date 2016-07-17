@@ -94,13 +94,36 @@ func (r *uplinkRoutes) AcceptInvite(ctx context.Context, convID *pd.ID) (*pd.Boo
 	return &pd.BoolResp{Success: true}, nil
 }
 
+func (r *uplinkRoutes) ConversationInfo(ctx context.Context, id *pd.ID) (*pd.Conversation, error) {
+	_, err := r.checkSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	conv, err := r.u.getConversationWithPeek(id.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pd.Conversation{
+		Id:   conv.ID,
+		Name: conv.Name,
+		LastMessage: &pd.Message{
+			Tag:        conv.convMsg.Tag,
+			SenderName: conv.convMsg.SenderName,
+			Timestamp:  conv.convMsg.Timestamp,
+			Body:       conv.convMsg.Body,
+		},
+	}, nil
+}
+
 func (r *uplinkRoutes) Conversations(ctx context.Context, _ *pd.Empty) (*pd.ConversationList, error) {
 	uid, err := r.checkSession(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	convs, err := r.u.getConversations(uid)
+	convs, err := r.u.getConversationsWithPeek(uid)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +131,20 @@ func (r *uplinkRoutes) Conversations(ctx context.Context, _ *pd.Empty) (*pd.Conv
 	ret := &pd.ConversationList{Convs: make([]*pd.Conversation, len(convs))}
 
 	for i, conv := range convs {
+		var msg *pd.Message
+		if conv.convMsg != nil {
+			msg = &pd.Message{
+				Tag:        conv.convMsg.Tag,
+				SenderName: conv.convMsg.SenderName,
+				Timestamp:  conv.convMsg.Timestamp,
+				Body:       conv.convMsg.Body,
+			}
+		}
+
 		ret.Convs[i] = &pd.Conversation{
-			Id:   conv.ID,
-			Name: conv.Name,
+			Id:          conv.ID,
+			Name:        conv.Name,
+			LastMessage: msg,
 		}
 	}
 

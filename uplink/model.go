@@ -169,6 +169,47 @@ func (u *Uplink) getConversations(UID int64) (convs []Conversation, err error) {
 	return
 }
 
+type convPeek struct {
+	Conversation
+	*convMsg
+}
+
+func (u *Uplink) getConversationWithPeek(convID int64) (cp *convPeek, err error) {
+	conv, err := u.getConversation(convID)
+
+	if err != nil {
+		return
+	}
+
+	lastMsg, err := u.getLastMessageFor(convID)
+	if err != nil {
+		return
+	}
+
+	cp = &convPeek{Conversation: *conv, convMsg: lastMsg}
+	return
+}
+
+func (u *Uplink) getConversationsWithPeek(UID int64) (convPeeks []convPeek, err error) {
+	convs, err := u.getConversations(UID)
+	if err != nil {
+		return
+	}
+
+	convPeeks = make([]convPeek, len(convs))
+
+	for i, conv := range convs {
+		msg, err := u.getLastMessageFor(conv.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		convPeeks[i] = convPeek{conv, msg}
+	}
+
+	return
+}
+
 func (u *Uplink) getFCMSubscriptions(uid int64) (regids []string, err error) {
 	err = u.serverFault(u.db.Model(&FCMSubscription{}).Select("reg_id").
 		Where("uid = ?", uid).Scan(&regids),
@@ -245,6 +286,24 @@ func (u *Uplink) getInvites(uid int64) (convs []inviteInfo, err error) {
 	).Select(
 		fmt.Sprintf("%s.name AS sendername, %s.id as convid, %s.name as convname", users, conversations, conversations),
 	).Where(invites+".receiver = ?", uid).Scan(&convs))
+
+	return
+}
+
+func (u *Uplink) getLastMessageFor(convID int64) (msg *convMsg, err error) {
+	msg = new(convMsg)
+	messages := new(Message).TableName()
+	users := new(User).TableName()
+
+	err = u.serverFault(u.db.Table(messages).Joins(
+		fmt.Sprintf("JOIN %s ON %s.sender = %s.id", users, messages, users),
+	).Select(
+		"tag, name AS sendername, CAST(EXTRACT(EPOCH FROM recv_time) AS BIGINT) AS timestamp, body",
+	).Order("tag DESC").Limit(1).Scan(msg))
+
+	if err == nil && msg.Tag == 0 {
+		return nil, nil
+	}
 
 	return
 }
