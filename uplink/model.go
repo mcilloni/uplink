@@ -299,7 +299,7 @@ func (u *Uplink) getLastMessageFor(convID int64) (msg *convMsg, err error) {
 		fmt.Sprintf("JOIN %s ON %s.sender = %s.id", users, messages, users),
 	).Select(
 		"tag, name AS sendername, CAST(EXTRACT(EPOCH FROM recv_time) AS BIGINT) AS timestamp, body",
-	).Order("tag DESC").Limit(1).Scan(msg))
+	).Where("conversation = ?", convID).Order("tag DESC").Limit(1).Scan(msg))
 
 	if err == nil && msg.Tag == 0 {
 		return nil, nil
