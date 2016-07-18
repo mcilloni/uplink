@@ -439,11 +439,11 @@ func (r *uplinkRoutes) SubmitRegID(ctx context.Context, regID *pd.RegID) (*pd.Bo
 
 	_, err = r.u.newFCMSubscription(uid, regID.RegId)
 	if err != nil {
-		return nil, err
-	}
+		if strings.Contains(err.Error(), "ETOOMANYFCMIDS") {
+			return nil, pd.ErrTooManyFCMIDs
+		}
 
-	if strings.Contains(err.Error(), "ETOOMANYFCMIDS") {
-		return nil, pd.ErrTooManyFCMIDs
+		return nil, err
 	}
 
 	return &pd.BoolResp{Success: true}, nil
