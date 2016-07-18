@@ -239,6 +239,8 @@ CREATE OR REPLACE FUNCTION check_max_fcm_ids() RETURNS TRIGGER
     IF (SELECT COUNT(*) >= 10 FROM fcm_subscriptions WHERE uid = NEW.uid) THEN
       RAISE EXCEPTION 'TOO_MANY_FCM_IDS';
     END IF;
+
+    RETURN NEW;
   END
 $$;
 
