@@ -42,9 +42,15 @@ func (u *Uplink) notifyNewMessage(message *Message) error {
 		return err
 	}
 
+	conv, err := u.getConversation(message.Conversation)
+	if err != nil {
+		return err
+	}
+
 	notif := &pd.Notification{
 		Type:     pd.Notification_MESSAGE,
 		UserName: name,
+		ConvName: conv.Name,
 		ConvId:   message.Conversation,
 		MsgTag:   message.Tag,
 		Body:     message.Body,
