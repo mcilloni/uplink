@@ -15,8 +15,6 @@ package uplink
 import (
 	"unicode/utf8"
 
-	"github.com/golang/protobuf/jsonpb"
-
 	fcm "github.com/mcilloni/go-fcm"
 	pd "github.com/mcilloni/uplink/protodef"
 )
@@ -39,14 +37,22 @@ func truncate(str string) string {
 	return str
 }
 
-func notificationToJSON(n *pd.Notification) (string, error) {
-	newN := *n
-	newN.Body = truncate(n.Body)
-	return (&jsonpb.Marshaler{OrigName: true}).MarshalToString(&newN)
+func notificationToDataPayload(n *pd.Notification) fcm.Data {
+	return fcm.Data{
+		"type":      n.Type,
+		"user_name": n.UserName,
+		"conv_id":   n.ConvId,
+		"conv_name": n.ConvName,
+		"msg_tag":   n.MsgTag,
+		"body":      truncate(n.Body),
+	}
 }
 
-func (u *Uplink) sendFCMMessage(regids regTentatives, message string) error {
-	resp, err := fcm.SendHttp(u.cfg.FCM.APIKey, fcm.HttpMessage{})
+func (u *Uplink) sendFCMMessage(regids regTentatives, message fcm.Data) error {
+	resp, err := fcm.SendHttp(u.cfg.FCM.APIKey, fcm.HttpMessage{
+		RegistrationIds: regids.Regids,
+		Data:            message,
+	})
 
 	if err != nil {
 		return err
@@ -83,7 +89,7 @@ func (u *Uplink) sendFCMMessage(regids regTentatives, message string) error {
 					retryTs = append(retryTs, curTry+1)
 				}
 			default:
-				u.Printf("ERROR IN GCM RESPONSE: %s\n", result.Error)
+				u.Printf("ERROR IN FCM RESPONSE: %s\n", result.Error)
 			}
 		}
 	}
@@ -104,15 +110,10 @@ func (u *Uplink) sendFCMBroadcast(b *broadcast) error {
 		return err
 	}
 
-	marsh, err := notificationToJSON(b.Notification)
-	if err != nil {
-		return err
-	}
-
 	return u.sendFCMMessage(regTentatives{
 		Regids: regids,
 		Trys:   make([]uint8, len(regids)),
-	}, marsh)
+	}, notificationToDataPayload(b.Notification))
 }
 
 func (u *Uplink) registerFCMHandler() {
@@ -143,7 +144,7 @@ func (u *Uplink) registerFCMHandler() {
 			}
 
 			if err != nil {
-				u.Printf("ERROR WHILE SENDING NOTIFICATION TO GCM: %v\n", err)
+				u.Printf("ERROR WHILE SENDING NOTIFICATION TO FCM: %v\n", err)
 			}
 		}
 	}()
