@@ -43,7 +43,7 @@ type dispatcher struct {
 func startDispatcher(l *log.Logger) *dispatcher {
 	d := &dispatcher{
 		l:              l,
-		pushChans:      make([]chan<- *broadcast, 1),
+		pushChans:      make([]chan<- *broadcast, 0),
 		bins:           make(map[int64][]chan<- *pd.Notification),
 		addSinkChan:    make(chan *sink, 100),
 		notifyChan:     make(chan *broadcast, 1000),
