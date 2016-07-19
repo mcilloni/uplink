@@ -115,7 +115,7 @@ func (u *Uplink) sendFCMBroadcast(b *broadcast) error {
 	}, marsh)
 }
 
-func (u *Uplink) spawnFCMHandler() {
+func (u *Uplink) registerFCMHandler() {
 	sink := make(chan *broadcast, 100)
 	u.dispatcher.addPushChan(sink)
 

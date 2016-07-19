@@ -169,6 +169,7 @@ func (u *Uplink) notifyFriendshipEstablished(friendship *Friendship) error {
 
 func (u *Uplink) startDispatcher() {
 	u.dispatcher = startDispatcher(u.Logger)
+	u.registerFCMHandler()
 }
 
 // Start starts a previously configured Uplink instance.
